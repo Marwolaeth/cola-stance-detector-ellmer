@@ -3,7 +3,8 @@
 # remotes::install_github('tidyverse/ellmer')
 
 library(ellmer)
-library(stringr) # Для удобной работы со строками
+library(glue)
+# library(stringr) # Для удобной работы со строками
 
 # --- Настройка базового LLM ----
 # Предполагается, что у вас настроен ключ API (например, переменная среды OPENAI_API_KEY)
@@ -23,49 +24,93 @@ chat_base <- chat_openrouter(
     api_args = list(temperature = 0)
 )
 
+# Схема анализа ----
+type_stance <- type_enum(
+    values = c('Позитивная', 'Негативная', 'Нейтральная'),
+    description = "Окончательно определённая позиция автора по отношению к цели."
+)
+
+type_analysis <- type_object(
+    stance = type_stance,
+    explanation = type_string(
+        description = 'Поясните ваше решение о классификации позиции автора в одном абзаце.'
+    )
+)
+
+# Служебные функции ----
+type_to_term <- function(type = c('object', 'statement')) {
+    type <- match.arg(type, c('object', 'statement'), several.ok = FALSE)
+    
+    switch(
+        type,
+        object = 'объекту',
+        statement = 'утверждению'
+    )
+}
+
+get_prompts <- function(role, ...) {
+    template_system <- file.path('prompts', glue::glue('system-{role}.md'))
+    template_user  <- file.path('prompts', glue::glue('user-{role}.md'))
+    
+    list(
+        system = interpolate_file(template_system, ...),
+        task = interpolate_file(template_user, ...)
+    )
+}
+
+execute_prompts <- function(chat, prompts) {
+    # Проверка чата
+    if (!ellmer:::is_chat(chat) | length(chat$get_turns()) != 0) {
+        stop('Invalid `chat` argument: must be an empty Chat object.')
+    }
+    
+    # Проверка инструкций
+    if (!is.list(prompts) | !all.equal(c('system', 'task'), names(prompts))) {
+        stop('Wrong `prompts` argument: must be a list with two slots.')
+    }
+    
+    # Присваемваем модели роль
+    chat$set_system_prompt(prompts$system)
+    
+    return(chat$chat(prompts$task, echo = "none"))
+}
+
 # Этап 1: Многомерный анализ текста (Эксперты) ----
-## 1.1. Лингвистический эксперт ----
-analyze_linguistic <- function(chat_base, tweet) {
+## Функция-конструктор ----
+analyse <- function(
+        text,
+        chat_base,
+        role = c('linguist', 'domain', 'veteran'),
+        ...
+    ) {
+    role <- match.arg(
+        role,
+        c('linguist', 'domain', 'veteran'),
+        several.ok = FALSE
+    )
+    
     # Клонируем чат для нового, чистого взаимодействия
     chat <- chat_base$clone()
     
-    prompt <- interpolate(
-        "Вы лингвист. Точно и кратко объясните лингвистические элементы в сообщении и то, как эти элементы влияют на смысл, включая грамматическую структуру, время и склонение, риторические приёмы, лексический выбор и так далее. Больше ничего не делайте. Сообщение: {{tweet}}",
-        tweet = tweet
-    )
+    # Загружаем инструкции
+    prompts <- get_prompts(role, text = text, ...)
     
-    return(chat$chat(prompt, echo = "none"))
-}
-
-## 1.2. Специалист по предметной области ----
-analyze_domain <- function(chat_base, tweet, target, role = 'социолог') {
-    chat <- chat_base$clone()
-    
-    prompt <- interpolate(
-        "Вы {{role}}. Точно и кратко объясните ключевые элементы, содержащиеся в цитате, такие как персоны, события, партии, религии и т.д. Также объясните их связь с {{target}} (если существует). Больше ничего не делайте. Цитата: {{tweet}}",
-        role = role,
-        target = target,
-        tweet = tweet
-    )
-    
-    return(chat$chat(prompt, echo = "none"))
-}
-
-## 1.3. Ветеран социальных сетей ----
-analyze_social_media <- function(chat_base, tweet) {
-    chat <- chat_base$clone()
-    
-    prompt <- interpolate(
-        "Вы активный пользователь социальных сетей и хорошо знакомы со способом выражения в интернете. Проанализируйте следующее сообщение, сосредоточившись на содержании, эмоциональном тоне, подразумеваемом смысле и так далее. Больше ничего не делайте. Сообщение: {{tweet}}",
-        tweet = tweet
-    )
-    
-    return(chat$chat(prompt, echo = "none"))
+    # Исполняем инструкции
+    execute_prompts(chat, prompts)
 }
 
 # Этап 2: Дебаты с улучшенным логическим выводом (Дебатеры) ----
 # Функция для проведения дебатов по конкретной позиции
-debate_stance <- function(chat_base, tweet, target, stance, analysis_results) {
+debate_stance <- function(
+        chat_base,
+        text,
+        target,
+        stance,
+        analysis_results,
+        type = c('object', 'statement')
+    ) {
+    target_type <- type_to_term(type)
+    
     chat <- chat_base$clone()
     
     # Объединяем результаты анализа в одну строку для промпта
@@ -73,9 +118,10 @@ debate_stance <- function(chat_base, tweet, target, stance, analysis_results) {
     ExpertResponse <- analysis_results$domain
     UserResponse <- analysis_results$social_media
     
-    prompt <- interpolate(
-        "Твит: {{tweet}}. Лингвистический анализ:{{LingResponse}}. Анализ специалиста по предметной области:{{ExpertResponse}}. Анализ активного пользователя социальных сетей: {{UserResponse}}. Вы считаете, что позиция, стоящая за твитом – {{stance}} по отношению к {{target}}. Определите три главных доказательства из анализов, которые лучше всего поддерживают вашу точку зрения, и аргументируйте свою позицию.",
-        tweet = tweet,
+    prompts <- get_prompts(
+        'debater',
+        text = text,
+        target_type = target_type,
         target = target,
         stance = stance,
         LingResponse = LingResponse,
@@ -83,12 +129,21 @@ debate_stance <- function(chat_base, tweet, target, stance, analysis_results) {
         UserResponse = UserResponse
     )
     
-    return(chat$chat(prompt, echo = "none"))
+    # Исполняем инструкции
+    execute_prompts(chat, prompts)
 }
 
 # Этап 3: Заключение о позиции (Судья) ----
 # 3. Судья
-determine_stance <- function(chat_base, tweet, target, debate_results) {
+determine_stance <- function(
+        chat_base,
+        text,
+        target,
+        debate_results,
+        type = c('object', 'statement')
+    ) {
+    target_type <- type_to_term(type)
+    
     # Клонируем чат для нового, чистого взаимодействия
     chat <- chat_base$clone()
     
@@ -97,67 +152,50 @@ determine_stance <- function(chat_base, tweet, target, debate_results) {
     AgainstResponse <- debate_results$against
     NeutralResponse <- debate_results$neutral
     
-    # 1. Определение схемы структурированного вывода
-    # Используем type_enum для ограничения ответа только тремя допустимыми значениями
-    type_stance <- type_enum(
-        values = c('За', 'Против', 'Нейтрально'),
-        description = "Окончательно определённая позиция автора по отношению к цели: За, Против или Нейтрально."
-    )
-    
-    type_analysis <- type_object(
-        stance = type_stance,
-        explanation = type_string(
-            description = 'Поясните ваше решение о классификации позиции автора в одном абзаце.'
-        )
-    )
-    
-    # 2. Подготовка промпта
-    # Промпт упрощен, так как формат вывода теперь задается схемой, а не текстовой инструкцией.
-    prompt <- interpolate(
-        "На основе твита и трёх наборов аргументов, определите позицию автора.
-
-Критерии оценки (в порядке приоритета):
-1. Явные утверждения и оценки в тексте
-2. Эмоциональный тон и риторические приёмы
-3. Контекст и подразумеваемый смысл
-
-Выберите позицию, которая лучше всего объясняет большинство элементов твита.
-Если аргументы противоречивы, объясните, почему вы выбрали именно эту позицию.
-
-Твит: {{tweet}}
-Аргументы 'За': {{FavourResponse}}
-Аргументы 'Против': {{AgainstResponse}}
-Аргументы 'Нейтрально': {{NeutralResponse}}",
-        tweet = tweet,
+   
+    # Подготовка промптов
+    prompts <- get_prompts(
+        'judger',
+        text = text,
+        target_type = target_type,
         target = target,
         FavourResponse = FavourResponse,
         AgainstResponse = AgainstResponse,
         NeutralResponse = NeutralResponse
     )
     
-    # 3. Использование chat_structured для получения гарантированно структурированного результата
+    # Назначаем системную инструкцию
+    chat$set_system_prompt(prompts$system)
+    
+    # Использование chat_structured для получения гарантированно структурированного результата
     final_stance <- chat$chat_structured(
-        prompt,
+        prompts$task,
         type = type_analysis
     )
     
     print(final_stance)
     
-    # Поскольку мы запросили single enum, final_stance будет вектором R с одним из значений: 
-    # 'Favour', 'Against', или 'Neutral'. Дополнительная обработка не требуется.
     return(final_stance)
 }
 
 # Общая функция-обертка COLA ----
 cola_single_detection <- function(
         chat_base,
-        tweet,
+        text,
         target,
+        type = c('object', 'statement'),
         domain_role = 'социолог'
 ) {
     
-    cat(paste0("--- Анализ текста для цели '", target, "' ---\n"))
-    cat(paste0("Текст: ", tweet, "\n\n"))
+    target_type_gen <- switch(
+        type,
+        object = 'объекта',
+        statement = 'утверждения'
+    )
+    target_type <- type_to_term(type)
+    
+    cat(glue::glue("--- Анализ текста для {target_type_gen} '{target}'---\n"))
+    cat(paste0("Текст: ", text, "\n\n"))
     
     # ==========================================================
     # ЭТАП 1: Многомерный анализ текста
@@ -165,9 +203,20 @@ cola_single_detection <- function(
     cat("1. Проведение многомерного анализа...\n")
     
     analysis_results <- list(
-        linguistic = analyze_linguistic(chat_base, tweet),
-        domain = analyze_domain(chat_base, tweet, target, domain_role),
-        social_media = analyze_social_media(chat_base, tweet)
+        linguistic = analyse(text, chat_base, role = 'linguist'),
+        domain = analyse(
+            text,
+            chat_base,
+            role = 'domain',
+            target = target,
+            target_type = target_type,
+            domain = domain_role
+        ),
+        social_media = analyse(
+            text, chat_base, role = 'veteran',
+            target = target,
+            target_type = target_type
+        )
     )
     
     # cat("   Лингвистический анализ: ", analysis_results$linguistic, "\n")
@@ -180,9 +229,15 @@ cola_single_detection <- function(
     cat("2. Проведение дебатов...\n")
     
     debate_results <- list(
-        favour = debate_stance(chat_base, tweet, target, "поддерживающая", analysis_results),
-        against = debate_stance(chat_base, tweet, target, "отрицательная", analysis_results),
-        neutral = debate_stance(chat_base, tweet, target, "нейтральная", analysis_results)
+        favour = debate_stance(
+            chat_base, text, target, "позитивная", analysis_results, type
+        ),
+        against = debate_stance(
+            chat_base, text, target, "негативная", analysis_results, type
+        ),
+        neutral = debate_stance(
+            chat_base, text, target, "нейтральная", analysis_results, type
+        )
     )
     
     # cat("   Аргумент 'За': ", debate_results$favour, "\n")
@@ -194,17 +249,22 @@ cola_single_detection <- function(
     # ==========================================================
     cat("3. Вынесение окончательного решения...\n")
     
-    final_stance <- determine_stance(chat_base, tweet, target, debate_results)
+    final_stance <- determine_stance(
+        chat_base, text, target, debate_results, type
+    )
     
     cat(paste0("--- ОКОНЧАТЕЛЬНАЯ ПОЗИЦИЯ: ", final_stance$stance, " ---\n\n"))
     
-    return(list(
-        tweet = tweet,
-        target = target,
-        stance = final_stance,
-        analysis = analysis_results,
-        debates = debate_results
-    ))
+    return(
+        list(
+            text = text,
+            target = target,
+            target_type = type,
+            stance = final_stance,
+            analysis = analysis_results,
+            debates = debate_results
+        )
+    )
 }
 
 # Функция для обработки нескольких текстов ----
@@ -217,8 +277,9 @@ cola_batch_detection <- function(
     results <- lapply(data_list, function(item) {
         cola_single_detection(
             chat_base = chat_base,
-            tweet = item$tweet,
+            text = item$text,
             target = item$target,
+            type = item$target_type,
             domain_role = domain_role
         )
     })
@@ -226,9 +287,9 @@ cola_batch_detection <- function(
     # Преобразование результатов в удобный data frame
     final_df <- do.call(rbind, lapply(results, function(r) {
         data.frame(
-            Tweet = r$tweet,
-            Target = r$target,
-            Stance = r$stance,
+            text = r$text,
+            target = r$target,
+            stance = r$stance$stance,
             stringsAsFactors = FALSE
         )
     }))
@@ -243,20 +304,28 @@ cola_batch_detection <- function(
 # 1. Определяем тестовые данные ----
 test_data <- list(
     list(
-        tweet = "Роскомнадзор опять блокирует сайты под предлогом защиты данных, но на самом деле это просто цензура. Они контролируют интернет и ограничивают нашу свободу слова!",
-        target = "Роскомнадзор защищает персональные данные граждан"
+        text = "Роскомнадзор опять блокирует сайты под предлогом защиты данных, но на самом деле это просто цензура. Они контролируют интернет и ограничивают нашу свободу слова!",
+        target = "Роскомнадзор защищает персональные данные граждан",
+        target_type = 'statement'
     ),
     list(
-        tweet = "Отличная новость! Центральный банк России повысил ключевую ставку, чтобы стабилизировать рубль и защитить сбережения граждан. Вот что мы называем разумной денежно-кредитной политикой!",
-        target = "Центральный банк России"
+        text = "Отличная новость! Центральный банк России повысил ключевую ставку, чтобы стабилизировать рубль и защитить сбережения граждан. Вот что мы называем разумной денежно-кредитной политикой!",
+        target = "Центральный банк России",
+        target_type = 'object'
     ),
     list(
-        tweet = "Роскомнадзор стоит на страже информационного суверенитета России. Пример для всех ведомств.",
-        target = "Роскомнадзор"
+        text = "Роскомнадзор стоит на страже информационного суверенитета России. Пример для всех ведомств.",
+        target = "Роскомнадзор",
+        target_type = 'object'
     )
 )
 
-
+res <- cola_single_detection(
+    chat_base,
+    text = test_data[[1]]$text,
+    target = test_data[[1]]$target,
+    type = test_data[[1]]$target_type
+)
 
 # 2. Запускаем пакетный анализ COLA ----
 # (Убедитесь, что chat_base инициализирован выше)
@@ -266,10 +335,3 @@ test_data <- list(
 # print(cola_results$summary_table)
 
 cola_results$full_results
-
-# --- Пример ожидаемого вывода (без фактического запуска, так как это требует API) ---
-
-# cola_results$summary_table
-#                                                                                               Tweet                  Target    Stance
-# 1 The carbon tax is just another way for the government to control our lives and stifle economic growth. It's a job killer! Climate Change is Real Concern Against
-# 2                                    I saw her speech today. She spoke with such passion and clarity about the need for reform. A true leader.  Hillary Clinton  Favour
