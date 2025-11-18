@@ -26,7 +26,7 @@ chat_base <- chat_openrouter(
 
 # Схема анализа ----
 type_stance <- type_enum(
-    values = c('Позитивная', 'Негативная', 'Нейтральная'),
+    values = c('Positive', 'Negative', 'Neutral'),
     description = "Окончательно определённая позиция автора по отношению к цели."
 )
 
@@ -317,6 +317,11 @@ test_data <- list(
         text = "Роскомнадзор стоит на страже информационного суверенитета России. Пример для всех ведомств.",
         target = "Роскомнадзор",
         target_type = 'object'
+    ),
+    list(
+        text = "Полезное\n\nЭксперты Роскомнадзора расказали, как россиянам защитить персональные данные",
+        target = "Роскомнадзор защищает персональные данные граждан",
+        target_type = 'statement'
     )
 )
 
@@ -334,4 +339,4 @@ res <- cola_single_detection(
 # cola_results <- cola_batch_detection(chat_base, test_data)
 # print(cola_results$summary_table)
 
-cola_results$full_results
+cola_results$full_results[[4]]
