@@ -1,0 +1,36 @@
+en:
+  object:
+    gen: "the object"
+    dat: "the object"
+  statement:
+    gen: "the statement"
+    dat: "the following statement:"
+  analysis: "Text analysis for"
+  text: "Text"
+  stage_1: "Multidimensional analysis"
+  stage_2: "Debating"
+  stage_3: "Final decision"
+  result: "FINAL STANCE"
+  type_description: "Author's stance towards the target"
+  explanation_description: "Explain your stan classification choice in one paragraph."
+  stance_positive: "positive"
+  stance_neutral: "neutral"
+  stance_negative: "negative"
+
+ru:
+  object:
+    gen: "объекта"
+    dat: "объекту"
+  statement:
+    gen: "утверждения"
+  analysis: "Анализ текста для"
+  text: "Текст"
+  stage_1: "Проведение многомерного анализа"
+  stage_2: "Проведение дебатов"
+  stage_3: "Вынесение окончательного решения"
+  result: "ОКОНЧАТЕЛЬНАЯ ПОЗИЦИЯ"
+  type_description: "Окончательно определённая позиция автора по отношению к цели."
+  explanation_description: "Поясните ваше решение о классификации позиции автора в одном абзаце."
+  stance_positive: "позитивная"
+  stance_neutral: "нейтральная"
+  stance_negative: "негативная"
