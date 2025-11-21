@@ -300,6 +300,236 @@ cola_batch_detection <- function(
     ))
 }
 
+# Текстоцентричная функция ----
+stance <- function(
+        text,
+        target,
+        chat_base,
+        type = c('object', 'statement'),
+        lang = c('en', 'ru'),
+        domain_role = 'социолог',
+        verbose = TRUE
+) {
+    # =====================================================
+    # ВАЛИДАЦИЯ И ПОДГОТОВКА
+    # =====================================================
+    
+    # Валидация text
+    if (!is.character(text)) {
+        stop("`text` must be a character vector")
+    }
+    if (length(text) == 0) {
+        stop("`text` cannot be empty")
+    }
+    
+    # Валидация target
+    if (!is.character(target)) {
+        stop("`target` must be a character vector")
+    }
+    if (length(target) == 0) {
+        stop("`target` cannot be empty")
+    }
+    
+    # Валидация type
+    if (is.character(type)) {
+        type <- match.arg(type, c('object', 'statement'), several.ok = TRUE)
+    } else {
+        stop("`type` must be a character vector")
+    }
+    
+    # Валидация lang
+    if (is.character(lang)) {
+        lang <- match.arg(lang, c('en', 'ru'), several.ok = TRUE)
+    } else {
+        stop("`lang` must be a character vector")
+    }
+    
+    # Валидация domain_role
+    if (!is.character(domain_role) || length(domain_role) == 0) {
+        stop("`domain_role` must be a non-empty character vector")
+    }
+    
+    # Валидация chat_base
+    if (!ellmer:::is_chat(chat_base)) {
+        stop("`chat_base` must be a Chat object")
+    }
+    
+    # =====================================================
+    # ОПРЕДЕЛЕНИЕ ДЛИНЫ И ПЕРЕРАБОТКА АРГУМЕНТОВ
+    # =====================================================
+    
+    n <- length(text)
+    
+    # Функция для переработки аргументов
+    recycle_arg <- function(arg, n, arg_name) {
+        if (length(arg) == 1) {
+            return(rep(arg, n))
+        } else if (length(arg) == n) {
+            return(arg)
+        } else {
+            stop(
+                glue::glue(
+                    "`{arg_name}` must have length 1 or {n} (same as `text`). Got {length(arg)}."
+                )
+            )
+        }
+    }
+    
+    # Переработка аргументов
+    target <- recycle_arg(target, n, "target")
+    type <- recycle_arg(type, n, "type")
+    lang <- recycle_arg(lang, n, "lang")
+    domain_role <- recycle_arg(domain_role, n, "domain_role")
+    
+    # =====================================================
+    # СОЗДАНИЕ ДАТАСЕТА ДЛЯ ОБРАБОТКИ
+    # =====================================================
+    
+    data_list <- data.frame(
+        text = text,
+        target = target,
+        target_type = type,
+        lang = lang,
+        domain_role = domain_role,
+        stringsAsFactors = FALSE,
+        row.names = NULL
+    )
+    
+    if (verbose) {
+        cat(
+            glue::glue(
+                "🔍 Processing {n} item(s) across {length(unique(lang))} language(s)\n"
+            )
+        )
+        cat(glue::glue("   Languages: {paste(unique(lang), collapse = ', ')}\n"))
+        cat(glue::glue("   Types: {paste(unique(type), collapse = ', ')}\n"))
+        cat("\n")
+    }
+    
+    # =====================================================================
+    # ОБРАБОТКА
+    # =====================================================================
+    
+    # Последовательная обработка
+    results <- lapply(
+        seq_len(nrow(data_list)),
+        function(i) {
+            row <- data_list[i, ]
+            
+            tryCatch(
+                cola_single_detection(
+                    chat_base = chat_base,
+                    text = row$text,
+                    target = row$target,
+                    type = row$target_type,
+                    lang = row$lang,
+                    domain_role = row$domain_role,
+                    verbose = verbose
+                ),
+                error = function(e) {
+                    warning(
+                        glue::glue(
+                            "Error processing item {i} ('{row$target}'): {e$message}"
+                        )
+                    )
+                    NULL
+                }
+            )
+        }
+    )
+    
+    # =====================================================================
+    # ФИЛЬТРАЦИЯ И АГРЕГАЦИЯ РЕЗУЛЬТАТОВ
+    # =====================================================================
+    
+    # Фильтруем NULL результаты
+    results <- Filter(Negate(is.null), results)
+    
+    if (length(results) == 0) {
+        stop("No successful results from processing")
+    }
+    
+    # Создаем summary table
+    summary_df <- do.call(rbind, lapply(results, function(r) {
+        data.frame(
+            text = r$text,
+            target = r$target,
+            target_type = r$target_type,
+            stance = if (!is.null(r$stance$stance)) r$stance$stance else NA_character_,
+            explanation = if (!is.null(r$stance$explanation)) r$stance$explanation else NA_character_,
+            stringsAsFactors = FALSE,
+            row.names = NULL
+        )
+    }))
+    
+    if (verbose) {
+        cat("\n")
+        cat(glue::glue("✅ Processing complete: {nrow(summary_df)}/{n} items successful\n"))
+        cat("\n")
+        print(summary_df)
+        cat("\n")
+    }
+    
+    # =====================================================================
+    # ВОЗВРАТ РЕЗУЛЬТАТОВ
+    # =====================================================================
+    
+    structure(
+        list(
+            summary = summary_df,
+            results = results,
+            metadata = list(
+                n_processed = nrow(summary_df),
+                n_total = n,
+                n_failed = n - nrow(summary_df),
+                languages = unique(data_list$lang),
+                types = unique(data_list$target_type),
+                timestamp = Sys.time()
+            )
+        ),
+        class = c("stance_result", "list")
+    )
+}
+
+# =====================================================================
+# МЕТОДЫ ДЛЯ РАБОТЫ С РЕЗУЛЬТАТАМИ
+# =====================================================================
+
+#' @export
+print.stance_result <- function(x, ...) {
+    cat("Stance Analysis Result\n")
+    cat(strrep("=", 60), "\n")
+    cat(glue::glue("Processed: {x$metadata$n_processed}/{x$metadata$n_total} items\n"))
+    cat(glue::glue("Failed: {x$metadata$n_failed} items\n"))
+    cat(glue::glue("Languages: {paste(x$metadata$languages, collapse = ', ')}\n"))
+    cat(glue::glue("Types: {paste(x$metadata$types, collapse = ', ')}\n"))
+    cat(glue::glue("Timestamp: {x$metadata$timestamp}\n"))
+    cat(strrep("=", 60), "\n\n")
+    
+    cat("Summary Table:\n")
+    print(x$summary)
+    
+    invisible(x)
+}
+
+#' @export
+summary.stance_result <- function(object, ...) {
+    cat("Stance Distribution:\n")
+    print(table(object$summary$stance))
+    cat("\n")
+    
+    cat("By Target:\n")
+    print(table(object$summary$target, object$summary$stance))
+    
+    invisible(object)
+}
+
+#' @export
+as.data.frame.stance_result <- function(x, row.names = NULL, optional = FALSE, ...) {
+    x$summary
+}
+
+
 # Пример использования ----
 # 1. Определяем тестовые данные ----
 test_data <- list(
