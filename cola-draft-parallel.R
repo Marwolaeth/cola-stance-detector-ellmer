@@ -1,3 +1,74 @@
+# Установка ellmer (если необходимо)
+# remotes::install_github('tidyverse/ellmer')
+
+library(ellmer)
+library(glue)
+# library(stringr) # Для удобной работы со строками
+
+# --- Настройка базового LLM ----
+# Предполагается, что у вас настроен ключ API (например, переменная среды OPENAI_API_KEY)
+
+# Создаем базовый объект чата.
+# Мы будем клонировать его для каждого агента, чтобы избежать загрязнения истории.
+# ВНИМАНИЕ: Для сложных задач, как COLA, рекомендуется использовать более мощные модели (GPT-4).
+openrouter_key <- function() {
+    list(Authorization = paste(
+        'Bearer', Sys.getenv('OPENROUTER_API_KEY')
+    ))
+}
+
+chat_base <- chat_openrouter(
+    model = 'openai/gpt-oss-20b:free',
+    credentials = openrouter_key,
+    api_args = list(temperature = 0)
+)
+
+# Служебные функции ----
+type_to_term <- function(type = c('object', 'statement'), lang = c('en', 'ru')) {
+    type <- match.arg(type, c('object', 'statement'), several.ok = FALSE)
+    lang <- match.arg(lang)
+    
+    switch(
+        type,
+        object = l(lang, 'object', 'dat'),
+        statement = l(lang, 'statement', 'dat')
+    )
+}
+
+get_prompts <- function(role, lang = c('en', 'ru'), ...) {
+    lang <- match.arg(lang)
+    
+    template_system <- file.path('prompts', lang, glue::glue('system-{role}.md'))
+    template_user  <- file.path('prompts', lang, glue::glue('user-{role}.md'))
+    
+    list(
+        system = interpolate_file(template_system, ...),
+        task = interpolate_file(template_user, ...)
+    )
+}
+
+catch <- function(expr, expr_name = deparse(substitute(expr))) {
+    if (!is.character(expr_name)) {
+        stop("`expr_name` must be a character string")
+    }
+    
+    tryCatch(
+        expr,
+        error = function(e) {
+            stop(glue::glue("Error in {expr_name}: {e$message}"))
+        }
+    )
+}
+
+validate_inputs <- function(inputs, n, input_name = 'Inputs') {
+    if (!is.character(input_name)) {
+        stop("`input_name` must be a character string")
+    }
+    
+    if (is.null(inputs) || length(inputs) != n) {
+        stop(glue::glue("{input_name} returned unexpected results"))
+    }
+}
 # =====================================================================
 # ЭТАП 1: ПОДГОТОВКА ЧАТОВ И ПРОМПТОВ ДЛЯ ЭКСПЕРТОВ
 # =====================================================================
@@ -72,7 +143,7 @@ stage_1_parallel_analysis <- function(
         chat = linguist_tasks$chat,
         prompts = linguist_tasks$tasks,
         rpm = rpm
-    )
+    ) |> catch('linguistic analysis')
     
     # =========================================================
     # ДОМЕННЫЙ АНАЛИЗ
@@ -94,7 +165,7 @@ stage_1_parallel_analysis <- function(
         chat = domain_tasks$chat,
         prompts = domain_tasks$tasks,
         rpm = rpm
-    )
+    ) |> catch('domain expert analysis')
     
     # =========================================================
     # АНАЛИЗ СОЦИАЛЬНЫХ МЕДИА
@@ -116,7 +187,7 @@ stage_1_parallel_analysis <- function(
         chat = interpreter_tasks$chat,
         prompts = interpreter_tasks$tasks,
         rpm = rpm
-    )
+    ) |> catch('social media interpretation')
     
     # Возвращаем результаты в формате: список списков
     # Каждый элемент соответствует одному текста
@@ -181,6 +252,10 @@ stage_2_parallel_debates <- function(
 ) {
     n <- length(texts)
     
+    validate_inputs(analysis_results$linguistic, n, 'Linguistic analysis')
+    validate_inputs(analysis_results$domain, n, 'Domain expert analysis')
+    validate_inputs(analysis_results$social_media, n, 'Social media analysis')
+    
     if (verbose) {
         cat(glue::glue("⏳ Stage 2: Parallel debates ({n} items × 3 stances)...\n"))
     }
@@ -210,7 +285,7 @@ stage_2_parallel_debates <- function(
                 chat = debater_task$chat,
                 prompts = debater_task$tasks,
                 rpm = rpm
-            )
+            ) |> catch('stance debates')
         }
     )
     
@@ -267,6 +342,10 @@ stage_3_parallel_judgment <- function(
 ) {
     n <- length(texts)
     
+    validate_inputs(debate_results$positive, n, 'Positive stance debates')
+    validate_inputs(debate_results$negative, n, 'Negative stance debates')
+    validate_inputs(debate_results$neutral, n, 'Neutral stance debates')
+    
     if (verbose) {
         cat(glue::glue("⏳ Stage 3: Parallel judgment ({n} items)...\n"))
     }
@@ -301,7 +380,7 @@ stage_3_parallel_judgment <- function(
         prompts = judger_tasks$tasks,
         type = type_analysis,
         rpm = rpm
-    )
+    ) |> catch('making final judgement')
     
     if (verbose) cat("✅ Stage 3 complete\n\n")
     
@@ -318,7 +397,7 @@ llm_stance <- function(
         type = c('object', 'statement'),
         lang = c('en', 'ru'),
         chat_base,
-        domain_role = if (lang == 'en') 'social commentator' else 'социолог',
+        domain_role = NULL,
         verbose = TRUE,
         rpm = 20
 ) {
@@ -357,8 +436,17 @@ llm_stance <- function(
     }
     
     # Валидация domain_role
-    if (!is.character(domain_role) || length(domain_role) != 1) {
-        stop("`domain_role` must be a sinle character string")
+    if (is.null(domain_role)) {
+        domain_role <- switch(
+            lang,
+            en = 'social commentator',
+            uk = 'соціолог',
+            ru = 'социолог'
+        )
+    } else {
+        if (!is.character(domain_role) || length(domain_role) != 1) {
+            stop("`domain_role` must be a sinle character string")
+        }
     }
     
     # Валидация chat_base
@@ -451,6 +539,10 @@ llm_stance <- function(
         rpm = rpm
     )
     
+    if (is.null(judgment_results) || nrow(judgment_results) != n) {
+        stop("Final stance judgement returned unexpected results")
+    }
+    
     # =====================================================================
     # СОЗДАНИЕ ИТОГОВОЙ ТАБЛИЦЫ
     # =====================================================================
@@ -486,6 +578,7 @@ llm_stance <- function(
                 n_processed = n,
                 language = lang,
                 types = unique(type),
+                domain_role = domain_role,
                 timestamp = Sys.time()
             )
         ),
@@ -502,8 +595,9 @@ print.stance_result <- function(x, ...) {
     cat("Stance Analysis Result\n")
     cat(strrep("=", 60), "\n")
     cat(glue::glue("Processed: {x$metadata$n_processed} items\n"))
-    cat(glue::glue("Languages: {paste(x$metadata$languages, collapse = ', ')}\n"))
+    cat(glue::glue("Language: {x$metadata$language}\n"))
     cat(glue::glue("Types: {paste(x$metadata$types, collapse = ', ')}\n"))
+    cat(glue::glue("Domain role: {x$metadata$domain_role}\n"))
     cat(glue::glue("Timestamp: {x$metadata$timestamp}\n"))
     cat(strrep("=", 60), "\n\n")
     
