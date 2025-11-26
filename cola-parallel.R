@@ -1,30 +1,8 @@
-# Установка ellmer (если необходимо)
-# remotes::install_github('tidyverse/ellmer')
-
-library(ellmer)
-library(glue)
-# library(stringr) # Для удобной работы со строками
-
-# --- Настройка базового LLM ----
-# Предполагается, что у вас настроен ключ API (например, переменная среды OPENAI_API_KEY)
-
-# Создаем базовый объект чата.
-# Мы будем клонировать его для каждого агента, чтобы избежать загрязнения истории.
-# ВНИМАНИЕ: Для сложных задач, как COLA, рекомендуется использовать более мощные модели (GPT-4).
-openrouter_key <- function() {
-    list(Authorization = paste(
-        'Bearer', Sys.getenv('OPENROUTER_API_KEY')
-    ))
-}
-
-chat_base <- chat_openrouter(
-    model = 'openai/gpt-oss-20b:free',
-    credentials = openrouter_key,
-    api_args = list(temperature = 0)
-)
-
 # Служебные функции ----
-type_to_term <- function(type = c('object', 'statement'), lang = c('en', 'ru')) {
+type_to_term <- function(
+        type = c('object', 'statement'),
+        lang = rcola_available_languages()
+) {
     type <- match.arg(type, c('object', 'statement'), several.ok = FALSE)
     lang <- match.arg(lang)
     
@@ -35,7 +13,11 @@ type_to_term <- function(type = c('object', 'statement'), lang = c('en', 'ru')) 
     )
 }
 
-get_prompts <- function(role, lang = c('en', 'ru'), ...) {
+get_prompts <- function(
+        role,
+        lang = rcola_available_languages(),
+        ...
+) {
     lang <- match.arg(lang)
     
     template_system <- file.path('prompts', lang, glue::glue('system-{role}.md'))
@@ -122,7 +104,7 @@ stage_1_parallel_analysis <- function(
     
     if (verbose) {
         cat(glue::glue("⏳ Stage 1: Parallel expert analysis ({n} items)..."), "\n")
-}
+    }
     
     # =========================================================
     # ЛИНГВИСТИЧЕСКИЙ АНАЛИЗ
@@ -394,9 +376,9 @@ stage_3_parallel_judgment <- function(
 llm_stance <- function(
         text,
         target,
-        type = c('object', 'statement'),
-        lang = c('en', 'ru'),
         chat_base,
+        type = c('object', 'statement'),
+        lang = rcola_available_languages(),
         domain_role = NULL,
         verbose = TRUE,
         rpm = 20
@@ -430,7 +412,7 @@ llm_stance <- function(
     
     # Валидация lang
     if (is.character(lang) & length(lang) == 1) {
-        lang <- match.arg(lang, c('en', 'ru'), several.ok = FALSE)
+        lang <- match.arg(lang, rcola_available_languages(), several.ok = FALSE)
     } else {
         stop("`lang` must be a single character string")
     }
@@ -439,9 +421,9 @@ llm_stance <- function(
     if (is.null(domain_role)) {
         domain_role <- switch(
             lang,
-            en = 'social commentator',
             uk = 'соціолог',
-            ru = 'социолог'
+            ru = 'социолог',
+            'social commentator'
         )
     } else {
         if (!is.character(domain_role) || length(domain_role) != 1) {
@@ -594,11 +576,15 @@ llm_stance <- function(
 print.stance_result <- function(x, ...) {
     cat("Stance Analysis Result\n")
     cat(strrep("=", 60), "\n")
-    cat(glue::glue("Processed: {x$metadata$n_processed} items\n"))
-    cat(glue::glue("Language: {x$metadata$language}\n"))
-    cat(glue::glue("Types: {paste(x$metadata$types, collapse = ', ')}\n"))
-    cat(glue::glue("Domain role: {x$metadata$domain_role}\n"))
-    cat(glue::glue("Timestamp: {x$metadata$timestamp}\n"))
+    cat(
+        glue::glue("Processed: {x$metadata$n_processed}/{x$metadata$n_total} items"),
+        "\n"
+    )
+    cat(glue::glue("Failed: {x$metadata$n_failed} items"), "\n")
+    cat(glue::glue("Language: {x$metadata$language}"), "\n")
+    cat(glue::glue("Types: {paste(x$metadata$types, collapse = ', ')}"), "\n")
+    cat(glue::glue("Domain role: {x$metadata$domain_role}"), "\n")
+    cat(glue::glue("Timestamp: {x$metadata$timestamp}"), "\n")
     cat(strrep("=", 60), "\n\n")
     
     cat("Summary Table:\n")
@@ -624,47 +610,3 @@ as.data.frame.stance_result <- function(x, row.names = NULL, optional = FALSE, .
     x$summary
 }
 
-res <- llm_stance(
-    text = test_data[[1]]$text,
-    target = test_data[[1]]$target,
-    type = test_data[[1]]$target_type,
-    lang = 'ru',
-    chat_base = chat_base
-)
-
-result <- llm_stance(
-    text = texts[1:3],
-    target = c(
-        "Роскомнадзор",
-        "Центральный банк России",
-        "Роскомнадзор"
-    ),
-    type = 'object',
-    lang = 'ru',
-    chat_base = chat_base
-)
-
-get_prompts(
-    'linguist',
-    text = texts[1:3],
-    target = c(
-        "Роскомнадзор защищает персональные данные граждан",
-        "Центральный банк России",
-        "Роскомнадзор"
-    ),
-    target_type = c('утверждению', 'объекту', 'объекту')
-)
-
-res <- llm_stance(
-    text = '🤡 Роскомнадзор получил ПОЛНОЕ управление над рунетом
-
-Правительство приняло постановление, по которому теперь РКН официально решает, что считать «угрозой» для сети, и может по своему усмотрению перенастраивать маршруты трафика, резать внешние каналы связи и фактически замыкать рунет внутри страны.
-
-Операторы связи будут обязаны выполнять распоряжения службы уже 1 марта 2026 года.
-
-Чебурнет: начало.',
-    target = 'Роскомнадзор',
-    type = 'object',
-    lang = 'ru',
-    chat_base = chat_base
-)

@@ -17,6 +17,25 @@ en:
   stance_neutral: "neutral"
   stance_negative: "negative"
 
+uk:
+  object:
+    gen: "об'єкта"
+    dat: "об'єкту"
+  statement:
+    gen: "твердження"
+    dat: "твердженню"
+  analysis: "Аналіз тексту для"
+  text: "Текст"
+  stage_1: "Багатовимірний аналіз"
+  stage_2: "Проведення дебатів"
+  stage_3: "Винесення остаточного рішення"
+  result: "ОСТАТОЧНА ПОЗИЦІЯ"
+  type_description: "Остаточно визначена позиція автора щодо цілі."
+  explanation_description: "Поясніть ваше рішення про класифікацію позиції автора в одному абзаці."
+  stance_positive: "позитивна"
+  stance_neutral: "нейтральна"
+  stance_negative: "негативна"
+
 ru:
   object:
     gen: "объекта"
@@ -35,3 +54,4 @@ ru:
   stance_positive: "позитивная"
   stance_neutral: "нейтральная"
   stance_negative: "негативная"
+  
