@@ -20,8 +20,18 @@ get_prompts <- function(
 ) {
     lang <- match.arg(lang)
     
-    template_system <- file.path('prompts', lang, glue::glue('system-{role}.md'))
-    template_user  <- file.path('prompts', lang, glue::glue('user-{role}.md'))
+    prompt_dir <- file.path('prompts', lang)
+    if (!dir.exists(prompt_dir)) {
+        # If a language is present in `translations.yaml`, but prompts are missing
+        warning(
+            glue::glue('Prompts not found for `{lang}`. Defaulting to `en`.')
+        )
+        lang <- 'en'
+        prompt_dir <- file.path('prompts', lang)
+    }
+    
+    template_system <- file.path(prompt_dir, glue::glue('system-{role}.md'))
+    template_user  <- file.path(prompt_dir, glue::glue('user-{role}.md'))
     
     list(
         system = interpolate_file(template_system, ...),
