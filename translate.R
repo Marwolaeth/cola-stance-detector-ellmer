@@ -1,12 +1,7 @@
-.rcola_env <- new.env()
-
 load_translations <- function() {
-    if (!exists("dict", envir = .rcola_env)) {
-        # yaml_file <- system.file("i18n/translations.yaml", package = "rcola")
-        yaml_file <- "i18n/translations.yaml"
-        .rcola_env$dict <- yaml::read_yaml(yaml_file)
-    }
-    .rcola_env$dict
+    # yaml_file <- system.file("i18n/translations.yaml", package = "rcola")
+    yaml_file <- "i18n/translations.yaml"
+    yaml::read_yaml(yaml_file)
 }
 
 rcola_available_languages <- function() {

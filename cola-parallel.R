@@ -30,12 +30,22 @@ get_prompts <- function(
         prompt_dir <- file.path('prompts', lang)
     }
     
+    # Add a reference resolution prompt if exists
+    reference_file <- file.path(prompt_dir, 'reference-resolution.md')
+    if (file.exists(reference_file)) {
+        reference_instruction <- ellmer::interpolate_file(reference_file)
+    } else {
+        # Default settings
+        reference_instruction <- l(lang, 'reference_instruction')
+    }
+    
+    
     template_system <- file.path(prompt_dir, glue::glue('system-{role}.md'))
     template_user  <- file.path(prompt_dir, glue::glue('user-{role}.md'))
     
     list(
-        system = interpolate_file(template_system, ...),
-        task = interpolate_file(template_user, ...)
+        system = ellmer::interpolate_file(template_system, ...),
+        task = ellmer::interpolate_file(template_user, ...)
     )
 }
 

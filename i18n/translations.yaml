@@ -12,10 +12,11 @@ en:
   stage_3: "Final decision"
   result: "FINAL STANCE"
   type_description: "Author's stance towards the target"
-  explanation_description: "Explain your stan classification choice in one paragraph."
+  explanation_description: "Explain your stance classification in one concise paragraph, covering all decision criteria."
   stance_positive: "positive"
   stance_neutral: "neutral"
   stance_negative: "negative"
+  reference_instruction: "Pronouns and ellipses refer to the target unless context clearly indicates otherwise."
 
 uk:
   object:
@@ -31,10 +32,11 @@ uk:
   stage_3: "Винесення остаточного рішення"
   result: "ОСТАТОЧНА ПОЗИЦІЯ"
   type_description: "Остаточно визначена позиція автора щодо цілі."
-  explanation_description: "Поясніть ваше рішення про класифікацію позиції автора в одному абзаці."
+  explanation_description: "Поясніть вашу класифікацію позиції автора в одному стислому абзаці, охопивши всі критерії рішення."
   stance_positive: "позитивна"
   stance_neutral: "нейтральна"
   stance_negative: "негативна"
+  reference_instruction: "Займенники та еліпси посилаються на об'єкт, якщо контекст не вказує на інше."
 
 ru:
   object:
@@ -50,8 +52,9 @@ ru:
   stage_3: "Вынесение окончательного решения"
   result: "ОКОНЧАТЕЛЬНАЯ ПОЗИЦИЯ"
   type_description: "Окончательно определённая позиция автора по отношению к цели."
-  explanation_description: "Поясните ваше решение о классификации позиции автора в одном абзаце."
+  explanation_description: "Поясните вашу классификацию позиции в одном кратком абзаце, охватив все критерии решения."
   stance_positive: "позитивная"
   stance_neutral: "нейтральная"
   stance_negative: "негативная"
+  reference_instruction: "Местоимения и эллипсис относятся к объекту анализа, если контекст не указывает иное."
   
