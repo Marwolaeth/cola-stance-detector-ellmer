@@ -51,6 +51,19 @@ validate_inputs <- function(inputs, n, input_name = 'Inputs') {
         stop(glue::glue("{input_name} returned unexpected results"))
     }
 }
+
+stage_toc <- function(tic, toc, msg) {
+    TICK <- '✅ '
+    
+    tocmsg <- paste0(round(toc - tic, 3), " seconds elapsed")
+    
+    if (is.null(msg) || is.na(msg) || length(msg) == 0) {
+        outmsg <- tocmsg
+    } else {
+        outmsg <- glue::glue('{TICK}{msg} complete – {tocmsg}\n\n')
+    }
+    outmsg
+}
 # =====================================================================
 # ЭТАП 1: ПОДГОТОВКА ЧАТОВ И ПРОМПТОВ ДЛЯ ЭКСПЕРТОВ
 # =====================================================================
@@ -102,8 +115,12 @@ stage_1_parallel_analysis <- function(
 ) {
     n <- length(texts)
     
+    tictoc::tic('Stage 1')
     if (verbose) {
-        cat(glue::glue("⏳ Stage 1: Parallel expert analysis ({n} items)..."), "\n")
+        cat(
+            glue::glue("⏳ Stage 1: Parallel expert analysis ({n} items)..."), 
+            "\n"
+        )
     }
     
     # =========================================================
@@ -179,7 +196,8 @@ stage_1_parallel_analysis <- function(
         social_media = social_results
     )
     
-    if (verbose) cat("✅ Stage 1 complete\n\n")
+    # if (verbose) cat("✅ Stage 1 complete\n\n")
+    tictoc::toc(func.toc = stage_toc, quiet = !verbose)
     
     analysis_results
 }
@@ -238,8 +256,13 @@ stage_2_parallel_debates <- function(
     validate_inputs(analysis_results$domain, n, 'Domain expert analysis')
     validate_inputs(analysis_results$social_media, n, 'Social media analysis')
     
+    tictoc::tic('Stage 2')
     if (verbose) {
-        cat(glue::glue("⏳ Stage 2: Parallel debates ({n} items × 3 stances)...\n"))
+        cat(
+            glue::glue(
+                "⏳ Stage 2: Parallel debates ({n} items × 3 stances)..."), 
+                "\n"
+            )
     }
     
     stance_labels <- c('positive', 'negative', 'neutral')
@@ -271,7 +294,8 @@ stage_2_parallel_debates <- function(
         }
     )
     
-    if (verbose) cat("✅ Stage 2 complete\n\n")
+    # if (verbose) cat("✅ Stage 2 complete\n\n")
+    tictoc::toc(func.toc = stage_toc, quiet = !verbose)
     
     debate_results
 }
@@ -328,8 +352,9 @@ stage_3_parallel_judgment <- function(
     validate_inputs(debate_results$negative, n, 'Negative stance debates')
     validate_inputs(debate_results$neutral, n, 'Neutral stance debates')
     
+    tictoc::tic('Stage 3')
     if (verbose) {
-        cat(glue::glue("⏳ Stage 3: Parallel judgment ({n} items)...\n"))
+        cat(glue::glue("⏳ Stage 3: Parallel judgment ({n} items)..."), "\n")
     }
     
     # Подготавливаем чаты для судей
@@ -344,6 +369,7 @@ stage_3_parallel_judgment <- function(
     
     if (verbose) cat("   ⚖️ Running parallel judgments...\n")
     
+    # Определяем схему для структурированного вывода
     type_stance <- type_enum(
         values = c('Positive', 'Negative', 'Neutral'),
         description = l(lang, 'type_description')
@@ -356,7 +382,7 @@ stage_3_parallel_judgment <- function(
         )
     )
     
-    # Определяем схему для структурированного вывода
+    # Получаем решение
     judgment_results <- ellmer::parallel_chat_structured(
         chat = judger_tasks$chat,
         prompts = judger_tasks$tasks,
@@ -364,7 +390,8 @@ stage_3_parallel_judgment <- function(
         rpm = rpm
     ) |> catch('making final judgement')
     
-    if (verbose) cat("✅ Stage 3 complete\n\n")
+    # if (verbose) cat("✅ Stage 3 complete\n\n")
+    tictoc::toc(func.toc = stage_toc, quiet = !verbose)
     
     judgment_results
 }
@@ -386,6 +413,8 @@ llm_stance <- function(
     # =====================================================================
     # ВАЛИДАЦИЯ И ПОДГОТОВКА
     # =====================================================================
+    
+    tictoc::tic()
     
     # Валидация text
     if (!is.character(text)) {
@@ -427,7 +456,7 @@ llm_stance <- function(
         )
     } else {
         if (!is.character(domain_role) || length(domain_role) != 1) {
-            stop("`domain_role` must be a sinle character string")
+            stop("`domain_role` must be a single character string")
         }
     }
     
@@ -537,12 +566,14 @@ llm_stance <- function(
     ) |>
         cbind(judgment_results)
     
+    toc <- tictoc::toc(quiet = TRUE)
+    
     if (verbose) {
         cat("📊 Summary Table:\n")
         print(summary_df)
         cat("\n")
         cat(strrep("=", 70), "\n")
-        cat("✅ Analysis complete!\n")
+        cat(TICK, "Analysis complete! – ", toc$callback_msg, "\n")
         cat(strrep("=", 70), "\n\n")
     }
     
@@ -561,6 +592,7 @@ llm_stance <- function(
                 language = lang,
                 types = unique(type),
                 domain_role = domain_role,
+                elapsed = toc$toc - toc$tic,
                 timestamp = Sys.time()
             )
         ),
@@ -584,6 +616,7 @@ print.stance_result <- function(x, ...) {
     cat(glue::glue("Language: {x$metadata$language}"), "\n")
     cat(glue::glue("Types: {paste(x$metadata$types, collapse = ', ')}"), "\n")
     cat(glue::glue("Domain role: {x$metadata$domain_role}"), "\n")
+    cat(glue::glue("Time elapsed: {x$metadata$elapsed} sec"), "\n")
     cat(glue::glue("Timestamp: {x$metadata$timestamp}"), "\n")
     cat(strrep("=", 60), "\n\n")
     
