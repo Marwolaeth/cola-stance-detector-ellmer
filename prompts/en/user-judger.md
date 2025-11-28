@@ -1,6 +1,6 @@
 Determine the author's position towards the {{target_type}} "{{target}}".
 
-Publication: {{text}}
+Publication: "{{text}}"
 
 Evidence presented:
 - Arguments for positive/supportive stance: {{FavourResponse}}
