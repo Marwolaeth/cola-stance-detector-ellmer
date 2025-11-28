@@ -1,4 +1,63 @@
-# Служебные функции ----
+# Utils ----
+catch <- function(expr, expr_name = deparse(substitute(expr))) {
+    if (!is.character(expr_name)) {
+        stop("`expr_name` must be a character string")
+    }
+    
+    tryCatch(
+        expr,
+        error = function(e) {
+            stop(glue::glue("Error in {expr_name}: {e$message}"))
+        }
+    )
+}
+
+validate_inputs <- function(inputs, expected_length, input_name = 'Inputs') {
+    if (!is.character(input_name)) {
+        stop("`input_name` must be a character string")
+    }
+    
+    if (is.null(inputs) || length(inputs) != expected_length) {
+        stop(glue::glue("{input_name} returned unexpected results"))
+    }
+}
+
+recycle_arg <- function(arg, n, arg_name) {
+    if (length(arg) == 1) {
+        return(rep(arg, n))
+    } else if (length(arg) == n) {
+        return(arg)
+    } else {
+        stop(
+            glue::glue(
+                "`{arg_name}` must have length 1 or {n} (same as `text`). "
+            ),
+            glue::glue("Got {length(arg)}.")
+        )
+    }
+}
+
+stage_toc <- function(tic, toc, msg) {
+    TICK <- '✅ '
+    
+    tocmsg <- paste0(round(toc - tic, 3), " seconds elapsed")
+    
+    if (is.null(msg) || is.na(msg) || length(msg) == 0) {
+        outmsg <- tocmsg
+    } else {
+        outmsg <- glue::glue('{TICK}{msg} complete – {tocmsg}\n\n')
+    }
+    outmsg
+}
+
+validate_stage <- function(x, stage_name) {
+    if (is.null(x)) {
+        stop(glue::glue("{stage_name} returned NULL"))
+    }
+    x
+}
+
+# ellmer Utils ----
 type_to_term <- function(
         type = c('object', 'statement'),
         lang = rcola_available_languages()
@@ -13,11 +72,31 @@ type_to_term <- function(
     )
 }
 
+type_stance_analysis <- function(lang) {
+    # A schema for the structured output
+    type_stance <- type_enum(
+        values = c('Positive', 'Negative', 'Neutral'),
+        description = l(lang, 'type_description')
+    )
+    
+    type_object(
+        stance = type_stance,
+        explanation = type_string(
+            description = l(lang, 'explanation_description')
+        )
+    )
+}
+
 get_prompts <- function(
         role,
         lang = rcola_available_languages(),
         ...
 ) {
+    role <- match.arg(
+        role,
+        choices = c('linguist', 'domain', 'interpreter', 'debater', 'judger'),
+        several.ok = FALSE
+    )
     lang <- match.arg(lang)
     
     prompt_dir <- file.path('prompts', lang)
@@ -39,79 +118,80 @@ get_prompts <- function(
         reference_instruction <- l(lang, 'reference_instruction')
     }
     
-    
     template_system <- file.path(prompt_dir, glue::glue('system-{role}.md'))
     template_user  <- file.path(prompt_dir, glue::glue('user-{role}.md'))
     
-    list(
+    # Check for file existence
+    if (!file.exists(template_system)) {
+        stop(
+            glue::glue(
+                'System template not found: {template_system}. ',
+                'Available roles: linguist, domain, interpreter, debater, judger.'
+            )
+        )
+    }
+    if (!file.exists(template_user)) {
+        stop(
+            glue::glue(
+                'User template not found: {template_user}. ',
+                'Available roles: linguist, domain, interpreter, debater, judger.'
+            )
+        )
+    }
+    
+    prompts <- list(
         system = ellmer::interpolate_file(template_system, ...),
         task = ellmer::interpolate_file(template_user, ...)
     )
-}
-
-catch <- function(expr, expr_name = deparse(substitute(expr))) {
-    if (!is.character(expr_name)) {
-        stop("`expr_name` must be a character string")
+    
+    # Check that system prompt is unique
+    if (length(prompts$system) != 1 || !is.character(prompts$system)) {
+        stop(
+            'System prompt interpolation returned unexpected results. ',
+            'Consider checking variable placeholders in system templates.'
+        )
     }
     
-    tryCatch(
-        expr,
-        error = function(e) {
-            stop(glue::glue("Error in {expr_name}: {e$message}"))
-        }
-    )
-}
-
-validate_inputs <- function(inputs, n, input_name = 'Inputs') {
-    if (!is.character(input_name)) {
-        stop("`input_name` must be a character string")
+    # Check for empty strings
+    if (nchar(prompts$system) == 0) {
+        stop(
+            'System prompt is empty after interpolation. ',
+            'Check that all required variables are provided.'
+        )
     }
     
-    if (is.null(inputs) || length(inputs) != n) {
-        stop(glue::glue("{input_name} returned unexpected results"))
+    # Check for user prompt existence
+    ## 
+    if (is.null(prompts$task)) {
+        stop(glue::glue('User prompt for the `{role}` is NULL'))
+    }
+    
+    prompts
+}
+
+check_tasks <- function(tasks, expected_length) {
+    if (length(tasks) != expected_length || !is.character(tasks)) {
+        stop(
+            'User prompt interpolation returned unexpected results. ',
+            'Consider checking variable placeholders in user templates.'
+        )
+    }
+    
+    if (any(nchar(tasks) == 0)) {
+        stop(
+            'User prompt is empty after interpolation. ',
+            'Check that all required variables are provided.'
+        )
     }
 }
 
-stage_toc <- function(tic, toc, msg) {
-    TICK <- '✅ '
-    
-    tocmsg <- paste0(round(toc - tic, 3), " seconds elapsed")
-    
-    if (is.null(msg) || is.na(msg) || length(msg) == 0) {
-        outmsg <- tocmsg
-    } else {
-        outmsg <- glue::glue('{TICK}{msg} complete – {tocmsg}\n\n')
-    }
-    outmsg
-}
-# =====================================================================
-# ЭТАП 1: ПОДГОТОВКА ЧАТОВ И ПРОМПТОВ ДЛЯ ЭКСПЕРТОВ
-# =====================================================================
-
-prepare_expert_chats <- function(
-        texts,
-        targets,
-        target_types,
-        lang,
-        domain_role,
-        chat_base,
-        expert_role = c('linguist', 'domain', 'interpreter')
-) {
-    expert_role <- match.arg(expert_role)
-    
-    # Загружаем инструкции для эксперта
-    prompts <- get_prompts(
-        expert_role,
-        lang = lang,
-        text = texts,
-        target = targets,
-        target_type = target_types,
-        domain = domain_role
-    )
-    
-    # Клонируем чат и устанавливаем system prompt
+prepare_tasks <- function(chat_base, prompts, n_texts) {
+    # Each time clone the base chat
     chat <- chat_base$clone()
+    # Set a system prompt
     chat$set_system_prompt(prompts$system)
+    
+    check_tasks(prompts$task, n_texts)
     
     list(
         chat = chat,
@@ -119,21 +199,37 @@ prepare_expert_chats <- function(
     )
 }
 
-# =====================================================================
-# ЭТАП 1: ПАРАЛЛЕЛЬНЫЙ АНАЛИЗ ТЕКСТОВ (ЭКСПЕРТЫ)
-# =====================================================================
+# Stage 1 - Expert Analysis ----
+prepare_expert_chats <- function(
+        inputs,
+        chat_base,
+        expert_role = c('linguist', 'domain', 'interpreter')
+) {
+    expert_role <- match.arg(expert_role)
+    
+    # Загружаем инструкции для эксперта
+    prompts <- with(
+        inputs,
+        get_prompts(
+            expert_role,
+            lang = lang,
+            text = texts,
+            target = targets,
+            target_type = target_types,
+            domain = domain_role
+        )
+    )
+    
+    prepare_tasks(chat_base, prompts, length(inputs$texts))
+}
 
 stage_1_parallel_analysis <- function(
-        texts,
-        targets,
-        target_types,
-        lang,
-        domain_role,
+        inputs,
         chat_base,
         verbose = TRUE,
         rpm = 500
 ) {
-    n <- length(texts)
+    n <- length(inputs$texts)
     
     tictoc::tic('Stage 1')
     if (verbose) {
@@ -143,17 +239,11 @@ stage_1_parallel_analysis <- function(
         )
     }
     
-    # =========================================================
-    # ЛИНГВИСТИЧЕСКИЙ АНАЛИЗ
-    # =========================================================
+    ### Linguist ----
     if (verbose) cat("   📊 Linguistic analysis...\n")
     
     linguist_tasks <- prepare_expert_chats(
-        texts = texts,
-        targets = targets,
-        target_types = target_types,
-        lang = lang,
-        domain_role = domain_role,
+        inputs,
         chat_base = chat_base,
         expert_role = 'linguist'
     )
@@ -164,18 +254,11 @@ stage_1_parallel_analysis <- function(
         rpm = rpm
     ) |> catch('linguistic analysis')
     
-    # =========================================================
-    # ДОМЕННЫЙ АНАЛИЗ
-    # =========================================================
-    
+    ### Domain ----
     if (verbose) cat("   📊 Domain expert analysis...\n")
     
     domain_tasks <- prepare_expert_chats(
-        texts = texts,
-        targets = targets,
-        target_types = target_types,
-        lang = lang,
-        domain_role = domain_role,
+        inputs,
         chat_base = chat_base,
         expert_role = 'domain'
     )
@@ -186,18 +269,11 @@ stage_1_parallel_analysis <- function(
         rpm = rpm
     ) |> catch('domain expert analysis')
     
-    # =========================================================
-    # АНАЛИЗ СОЦИАЛЬНЫХ МЕДИА
-    # =========================================================
-    
+    ### Social Media ----
     if (verbose) cat("   📊 Social media interpretation...\n")
     
     interpreter_tasks <- prepare_expert_chats(
-        texts = texts,
-        targets = targets,
-        target_types = target_types,
-        lang = lang,
-        domain_role = domain_role,
+        inputs,
         chat_base = chat_base,
         expert_role = 'interpreter'
     )
@@ -208,81 +284,63 @@ stage_1_parallel_analysis <- function(
         rpm = rpm
     ) |> catch('social media interpretation')
     
-    # Возвращаем результаты в формате: список списков
-    # Каждый элемент соответствует одному текста
-    analysis_results <- list(
+    # The result is a list of character vectors of length length(texts)
+    ## One vector for each role
+    inputs[['analysis_results']] <- list(
         linguistic = linguistic_results,
         domain = domain_results,
         social_media = social_results
     )
     
-    # if (verbose) cat("✅ Stage 1 complete\n\n")
     tictoc::toc(func.toc = stage_toc, quiet = !verbose)
     
-    analysis_results
+    inputs
 }
 
-# =====================================================================
-# ЭТАП 2: ПОДГОТОВКА ЧАТОВ ДЛЯ ДЕБАТЕРОВ
-# =====================================================================
 
+# Stage 2 - Stance Debates ----
 prepare_debater_chats <- function(
-        texts,
-        targets,
-        target_types,
-        lang,
         stance,
-        analysis_results,
+        inputs,
         chat_base
 ) {
-    prompts <- get_prompts(
-        'debater',
-        lang = lang,
-        text = texts,
-        target_type = target_types,
-        target = targets,
-        stance = stance,
-        LingResponse = analysis_results$linguistic,
-        ExpertResponse = analysis_results$domain,
-        UserResponse = analysis_results$social_media
+    prompts <- with(
+        inputs,
+        get_prompts(
+            'debater',
+            lang = lang,
+            text = texts,
+            target_type = target_types,
+            target = targets,
+            stance = stance,
+            LingResponse = analysis_results$linguistic,
+            ExpertResponse = analysis_results$domain,
+            UserResponse = analysis_results$social_media
+        )
     )
     
-    chat <- chat_base$clone()
-    chat$set_system_prompt(prompts$system)
-    
-    list(
-        chat = chat,
-        tasks = prompts$task
-    )
+    prepare_tasks(chat_base, prompts, length(inputs$texts))
 }
 
-# =====================================================================
-# ЭТАП 2: ПАРАЛЛЕЛЬНЫЕ ДЕБАТЫ
-# =====================================================================
-
 stage_2_parallel_debates <- function(
-        texts,
-        targets,
-        target_types,
-        lang,
-        analysis_results,
+        inputs,
         chat_base,
         verbose = TRUE,
         rpm = 500
 ) {
-    n <- length(texts)
+    n <- length(inputs$texts)
     
-    validate_inputs(analysis_results$linguistic, n, 'Linguistic analysis')
-    validate_inputs(analysis_results$domain, n, 'Domain expert analysis')
-    validate_inputs(analysis_results$social_media, n, 'Social media analysis')
+    validate_inputs(inputs$analysis_results$linguistic, n, 'Linguistic analysis')
+    validate_inputs(inputs$analysis_results$domain, n, 'Domain expert analysis')
+    validate_inputs(inputs$analysis_results$social_media, n, 'Social media analysis')
     
     tictoc::tic('Stage 2')
     if (verbose) {
         cat(
             glue::glue(
                 "⏳ Stage 2: Parallel debates ({n} items × 3 stances)..."), 
-                "\n"
-            )
+            "\n"
+        )
     }
     
     stance_labels <- c('positive', 'negative', 'neutral')
@@ -290,20 +348,16 @@ stage_2_parallel_debates <- function(
         stance_labels,
         function(stance_label) {
             prepare_debater_chats(
-                texts = texts,
-                targets = targets,
-                target_types = target_types,
-                lang,
-                stance = l(lang, glue::glue('stance_{stance_label}')),
-                analysis_results = analysis_results,
+                stance = l(inputs$lang, glue::glue('stance_{stance_label}')),
+                inputs = inputs,
                 chat_base = chat_base
             )
         }
     )
     names(debater_tasks) <- stance_labels
     
-    # Параллельный запуск всех дебатов
-    debate_results <- lapply(
+    # Parallel debates
+    inputs[['debate_results']] <- lapply(
         debater_tasks,
         function(debater_task) {
             ellmer::parallel_chat_text(
@@ -314,112 +368,113 @@ stage_2_parallel_debates <- function(
         }
     )
     
-    # if (verbose) cat("✅ Stage 2 complete\n\n")
     tictoc::toc(func.toc = stage_toc, quiet = !verbose)
     
-    debate_results
+    inputs
 }
 
-# =====================================================================
-# ЭТАП 3: ПОДГОТОВКА ЧАТОВ ДЛЯ СУДЕЙ
-# =====================================================================
-
+# Stage 3 - Judging ----
 prepare_judger_chats <- function(
-        texts,
-        targets,
-        target_types,
-        lang,
-        debate_results,
+        inputs,
         chat_base
 ) {
-    prompts <- get_prompts(
-        'judger',
-        lang = lang,
-        text = texts,
-        target_type = target_types,
-        target = targets,
-        FavourResponse = debate_results$positive,
-        AgainstResponse = debate_results$negative,
-        NeutralResponse = debate_results$neutral
+    prompts <- with(
+        inputs,
+        get_prompts(
+            'judger',
+            lang = lang,
+            text = texts,
+            target_type = target_types,
+            target = targets,
+            FavourResponse = debate_results$positive,
+            AgainstResponse = debate_results$negative,
+            NeutralResponse = debate_results$neutral
+        )
     )
     
-    chat <- chat_base$clone()
-    chat$set_system_prompt(prompts$system)
-    
-    list(
-        chat = chat,
-        tasks = prompts$task
-    )
+    prepare_tasks(chat_base, prompts, length(inputs$texts))
 }
 
-# =====================================================================
-# ЭТАП 3: ПАРАЛЛЕЛЬНЫЙ ВЫНОС РЕШЕНИЙ (СУДЬИ)
-# =====================================================================
-
 stage_3_parallel_judgment <- function(
-        texts,
-        targets,
-        target_types,
-        lang,
-        debate_results,
+        inputs,
         chat_base,
         verbose = TRUE,
-        rpm = 500
+        rpm = 500,
+        ...
 ) {
-    n <- length(texts)
+    n <- length(inputs$texts)
     
-    validate_inputs(debate_results$positive, n, 'Positive stance debates')
-    validate_inputs(debate_results$negative, n, 'Negative stance debates')
-    validate_inputs(debate_results$neutral, n, 'Neutral stance debates')
+    validate_inputs(inputs$debate_results$positive, n, 'Positive stance debates')
+    validate_inputs(inputs$debate_results$negative, n, 'Negative stance debates')
+    validate_inputs(inputs$debate_results$neutral, n, 'Neutral stance debates')
     
     tictoc::tic('Stage 3')
     if (verbose) {
         cat(glue::glue("⏳ Stage 3: Parallel judgment ({n} items)..."), "\n")
     }
     
-    # Подготавливаем чаты для судей
     judger_tasks <- prepare_judger_chats(
-        texts = texts,
-        targets = targets,
-        target_types = target_types,
-        lang = lang,
-        debate_results = debate_results,
+        inputs,
         chat_base = chat_base
     )
     
     if (verbose) cat("   ⚖️ Running parallel judgments...\n")
     
-    # Определяем схему для структурированного вывода
-    type_stance <- type_enum(
-        values = c('Positive', 'Negative', 'Neutral'),
-        description = l(lang, 'type_description')
-    )
-    
-    type_analysis <- type_object(
-        stance = type_stance,
-        explanation = type_string(
-            description = l(lang, 'explanation_description')
-        )
-    )
-    
-    # Получаем решение
-    judgment_results <- ellmer::parallel_chat_structured(
+    # Parallel decisions
+    inputs[['judgment_results']] <- ellmer::parallel_chat_structured(
         chat = judger_tasks$chat,
         prompts = judger_tasks$tasks,
-        type = type_analysis,
-        rpm = rpm
+        type = type_stance_analysis(inputs$lang),
+        rpm = rpm,
+        convert = TRUE,
+        ...
     ) |> catch('making final judgement')
     
-    # if (verbose) cat("✅ Stage 3 complete\n\n")
+    if (any(is.na(inputs$judgment_results$stance))) {
+        n_na <- sum(is.na(inputs$judgment_results$stance))
+        warning(glue::glue("{n_na} items returned NA stance"))
+    }
+    
     tictoc::toc(func.toc = stage_toc, quiet = !verbose)
     
-    judgment_results
+    inputs
 }
 
-# =====================================================================
-# ГЛАВНАЯ ФУНКЦИЯ: stance()
-# =====================================================================
-
+# The Wrapper Function ----
+#' Parallel Stance Analysis
+#'
+#' @param text Character vector of texts to analyze
+#' @param target Character vector of targets (recycled if length 1)
+#' @param chat_base an [ellmer::Chat] object from
+#' @param type either "object" or "statement" (recycled if length 1)
+#' @param lang Language code ("en", "ru", "uk")
+#' @param domain_role Domain expert role (default: "sociologist")
+#' @param verbose Show progress messages
+#' @param rpm Rate limit (requests per minute)
+#' @param ... Other arguments passed to [ellmer::parallel_chat_structured()]
+#'
+#' @return S3 object of class "stance_result" with:
+#'   - summary: data.frame with results
+#'   - analysis: expert analysis results
+#'   - debates: debate results
+#'   - judgments: final judgments
+#'   - metadata: processing metadata
+#'
+#' @examples
+#' \dontrun{
+#' chat <- ellmer::chat_openai()
+#' result <- llm_stance(
+#'     text = "Climate change is not real",
+#'     target = "Climate Change is real",
+#'     chat_base = chat,
+#'     type = "statement",
+#'     lang = "en"
+#' )
+#' print(result)
+#' summary(result)
+#' }
+#'
+#' @export
 llm_stance <- function(
         text,
         target,
@@ -428,15 +483,12 @@ llm_stance <- function(
         lang = rcola_available_languages(),
         domain_role = NULL,
         verbose = TRUE,
-        rpm = 20
+        rpm = 20,
+        ...
 ) {
-    # =====================================================================
-    # ВАЛИДАЦИЯ И ПОДГОТОВКА
-    # =====================================================================
-    
+    ## Validation ----
     tictoc::tic()
     
-    # Валидация text
     if (!is.character(text)) {
         stop("`text` must be a character vector")
     }
@@ -444,7 +496,6 @@ llm_stance <- function(
         stop("`text` cannot be empty")
     }
     
-    # Валидация target
     if (!is.character(target)) {
         stop("`target` must be a character vector")
     }
@@ -452,21 +503,18 @@ llm_stance <- function(
         stop("`target` cannot be empty")
     }
     
-    # Валидация type
     if (is.character(type)) {
         type <- match.arg(type, c('object', 'statement'), several.ok = TRUE)
     } else {
         stop("`type` must be a character vector")
     }
     
-    # Валидация lang
     if (is.character(lang) & length(lang) == 1) {
         lang <- match.arg(lang, rcola_available_languages(), several.ok = FALSE)
     } else {
         stop("`lang` must be a single character string")
     }
     
-    # Валидация domain_role
     if (is.null(domain_role)) {
         domain_role <- switch(
             lang,
@@ -480,37 +528,26 @@ llm_stance <- function(
         }
     }
     
-    # Валидация chat_base
     if (!ellmer:::is_chat(chat_base)) {
         stop("`chat_base` must be a Chat object")
     }
     
-    # =====================================================================
-    # ОПРЕДЕЛЕНИЕ ДЛИНЫ И ПЕРЕРАБОТКА АРГУМЕНТОВ
-    # =====================================================================
-    
+    ## Preparation ----
     n <- length(text)
-    
-    recycle_arg <- function(arg, n, arg_name) {
-        if (length(arg) == 1) {
-            return(rep(arg, n))
-        } else if (length(arg) == n) {
-            return(arg)
-        } else {
-            stop(
-                glue::glue(
-                    "`{arg_name}` must have length 1 or {n} (same as `text`). Got {length(arg)}."
-                )
-            )
-        }
-    }
     
     target <- recycle_arg(target, n, "target")
     type <- recycle_arg(type, n, "type")
     
-    # =====================================================================
-    # ВЫВОД ИНФОРМАЦИИ
-    # =====================================================================
+    target_types <- sapply(type, type_to_term, lang = lang)
+    
+    inputs <- list(
+        texts = text,
+        targets = target,
+        target_types = target_types,
+        lang = lang,
+        domain_role = domain_role,
+        chat_base = chat_base
+    )
     
     if (verbose) {
         cat("\n")
@@ -523,71 +560,30 @@ llm_stance <- function(
         cat("\n")
     }
     
-    # =====================================================================
-    # ЭТАП 1: ПАРАЛЛЕЛЬНЫЙ АНАЛИЗ
-    # =====================================================================
+    ## Analysis ----
+    output <- inputs |>
+        stage_1_parallel_analysis(chat_base, verbose, rpm) |>
+        validate_stage('Stage 1 (Expert analysis)') |>
+        stage_2_parallel_debates(chat_base, verbose, rpm) |>
+        validate_stage('Stage 2 (Stance debates)') |>
+        stage_3_parallel_judgment(chat_base, verbose, rpm, ...)
     
-    target_types <- sapply(type, type_to_term, lang = lang)
-    
-    analysis_results <- stage_1_parallel_analysis(
-        texts = text,
-        targets = target,
-        target_types = target_types,
-        lang = lang,
-        domain_role = domain_role,
-        chat_base = chat_base,
-        verbose = verbose,
-        rpm = rpm
-    )
-    
-    # =====================================================================
-    # ЭТАП 2: ПАРАЛЛЕЛЬНЫЕ ДЕБАТЫ
-    # =====================================================================
-    
-    debate_results <- stage_2_parallel_debates(
-        texts = text,
-        targets = target,
-        target_types = type,
-        lang = lang,
-        analysis_results = analysis_results,
-        chat_base = chat_base,
-        verbose = verbose,
-        rpm = rpm
-    )
-    
-    # =====================================================================
-    # ЭТАП 3: ПАРАЛЛЕЛЬНЫЙ ВЫНОС РЕШЕНИЙ
-    # =====================================================================
-    
-    judgment_results <- stage_3_parallel_judgment(
-        texts = text,
-        targets = target,
-        target_types = type,
-        lang = lang,
-        debate_results = debate_results,
-        chat_base = chat_base,
-        verbose = verbose,
-        rpm = rpm
-    )
-    
-    if (is.null(judgment_results) || nrow(judgment_results) != n) {
+    if (is.null(output$judgment_results) || nrow(output$judgment_results) != n) {
         stop("Final stance judgement returned unexpected results")
     }
     
-    # =====================================================================
-    # СОЗДАНИЕ ИТОГОВОЙ ТАБЛИЦЫ
-    # =====================================================================
-    
+    ## Postprocessing ----
     summary_df <- data.frame(
         text = text,
         target = target,
         target_type = type,
         lang = lang
     ) |>
-        cbind(judgment_results)
+        cbind(output$judgment_results)
     
     toc <- tictoc::toc(quiet = TRUE)
     
+    TICK <- '✅ '
     if (verbose) {
         cat("📊 Summary Table:\n")
         print(summary_df)
@@ -597,18 +593,17 @@ llm_stance <- function(
         cat(strrep("=", 70), "\n\n")
     }
     
-    # =====================================================================
-    # ВОЗВРАТ РЕЗУЛЬТАТОВ
-    # =====================================================================
-    
+    ## Return ----
     structure(
         list(
             summary = summary_df,
-            analysis = analysis_results,
-            debates = debate_results,
-            judgments = judgment_results,
+            analysis = output$analysis_results,
+            debates = output$debate_results,
+            judgments = output$judgment_results,
             metadata = list(
-                n_processed = n,
+                n_total = n,
+                n_processed = nrow(output$judgment_results),
+                n_failed = sum(is.na(output$judgment_results$stance)),
                 language = lang,
                 types = unique(type),
                 domain_role = domain_role,
@@ -620,10 +615,7 @@ llm_stance <- function(
     )
 }
 
-# =====================================================================
-# МЕТОДЫ ДЛЯ РАБОТЫ С РЕЗУЛЬТАТАМИ
-# =====================================================================
-
+# Methods ----
 #' @export
 print.stance_result <- function(x, ...) {
     cat("Stance Analysis Result\n")
