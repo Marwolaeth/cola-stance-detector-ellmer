@@ -1,3 +1,5 @@
+# TBD: vector of domain roles
+
 # Utils ----
 catch <- function(expr, expr_name = deparse(substitute(expr))) {
     if (!is.character(expr_name)) {
