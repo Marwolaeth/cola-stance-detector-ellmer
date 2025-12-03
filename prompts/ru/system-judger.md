@@ -3,3 +3,6 @@
 Используй явные критерии и логику.
 
 {{reference_instruction}}
+
+{{statement_instruction}
+}

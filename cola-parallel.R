@@ -92,6 +92,8 @@ type_stance_analysis <- function(lang) {
 get_prompts <- function(
         role,
         lang = rcola_available_languages(),
+        add_reference_resolution = FALSE,
+        add_statement_resolution = FALSE,
         ...
 ) {
     role <- match.arg(
@@ -111,13 +113,31 @@ get_prompts <- function(
         prompt_dir <- file.path('prompts', lang)
     }
     
-    # Add a reference resolution prompt if exists
-    reference_file <- file.path(prompt_dir, 'reference-resolution.md')
-    if (file.exists(reference_file)) {
-        reference_instruction <- ellmer::interpolate_file(reference_file)
+    if (add_reference_resolution) {
+        # Add a reference resolution prompt if exists
+        reference_file <- file.path(prompt_dir, 'reference-resolution.md')
+        if (file.exists(reference_file)) {
+            reference_instruction <- ellmer::interpolate_file(reference_file)
+        } else {
+            # Default settings
+            reference_instruction <- l(lang, 'reference_instruction')
+        }
+    } else {
+        reference_instruction <- ''
+    }
+    
+    if (add_statement_resolution) {
+        # Add a statement analysis instruction if exists
+        statement_file <- file.path(prompt_dir, 'statement-resolution.md')
+        if (file.exists(statement_file)) {
+            statement_instruction <- ellmer::interpolate_file(statement_file)
+        } else {
+            # Default settings
+            statement_instruction <- ''
+        }
     } else {
         # Default settings
-        reference_instruction <- l(lang, 'reference_instruction')
+        statement_instruction <- ''
     }
     
     template_system <- file.path(prompt_dir, glue::glue('system-{role}.md'))
@@ -422,9 +442,14 @@ prepare_judger_chats <- function(
             target = targets,
             FavourResponse = debate_results$positive,
             AgainstResponse = debate_results$negative,
-            NeutralResponse = debate_results$neutral
+            NeutralResponse = debate_results$neutral,
+            # Дополнительные инструкции
+            add_reference_resolution = 'object' %in% types,
+            add_statement_resolution = 'statement' %in% types,
         )
     )
+    
+    print(prompts$system)
     
     prepare_tasks(chat_base, prompts, length(inputs$texts))
 }
@@ -434,6 +459,8 @@ stage_3_parallel_judgment <- function(
         chat_base,
         verbose = TRUE,
         rpm = 500,
+        objects = FALSE,
+        statements = FALSE,
         ...
 ) {
     n <- length(inputs$texts)
@@ -449,7 +476,9 @@ stage_3_parallel_judgment <- function(
     
     judger_tasks <- prepare_judger_chats(
         inputs,
-        chat_base = chat_base
+        chat_base = chat_base,
+        objects = objects,
+        statements = FALSE
     )
     
     if (verbose) cat("   ⚖️ Running parallel judgments...\n")
@@ -591,6 +620,7 @@ llm_stance <- function(
     inputs <- list(
         texts = text,
         targets = target,
+        types = type,
         target_types = target_types,
         lang = lang,
         domain_roles = domain_role,
