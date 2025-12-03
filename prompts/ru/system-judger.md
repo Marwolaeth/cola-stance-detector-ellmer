@@ -4,5 +4,4 @@
 
 {{reference_instruction}}
 
-{{statement_instruction}
-}
+{{statement_instruction}}
