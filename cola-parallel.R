@@ -293,11 +293,9 @@ execute_role <- function(
                     )
                 }
                 result
-            } |> catch(
-                paste(tolower(info), task_i)
-            ),
+            },
             character(1)
-        )
+        ) |> catch(tolower(info))
     } else {
         # Use parallel analysis
         results <- ellmer::parallel_chat_text(
@@ -433,7 +431,7 @@ stage_2_parallel_debates <- function(
         debater_tasks,
         function(debater_task) {
             ellmer::parallel_chat_text(
-                chat = debater_task$chat[[1]],
+                chat = debater_task$chats[[1]],
                 prompts = debater_task$tasks,
                 rpm = rpm
             ) |> catch('stance debates')
@@ -497,7 +495,7 @@ stage_3_parallel_judgment <- function(
     
     # Parallel decisions
     inputs[['judgment_results']] <- ellmer::parallel_chat_structured(
-        chat = judger_tasks$chat[[1]],
+        chat = judger_tasks$chats[[1]],
         prompts = judger_tasks$tasks,
         type = type_stance_analysis(inputs$lang),
         rpm = rpm,
