@@ -147,15 +147,15 @@ get_prompts <- function(
     )
     
     # Check that system prompt is unique
-    if (length(prompts$system) != 1 || !is.character(prompts$system)) {
-        stop(
-            'System prompt interpolation returned unexpected results. ',
-            'Consider checking variable placeholders in system templates.'
-        )
-    }
+    # if (length(prompts$system) != 1 || !is.character(prompts$system)) {
+    #     stop(
+    #         'System prompt interpolation returned unexpected results. ',
+    #         'Consider checking variable placeholders in system templates.'
+    #     )
+    # }
     
     # Check for empty strings
-    if (nchar(prompts$system) == 0) {
+    if (any(nchar(prompts$system) == 0)) {
         stop(
             'System prompt is empty after interpolation. ',
             'Check that all required variables are provided.'
@@ -188,15 +188,23 @@ check_tasks <- function(tasks, expected_length) {
 }
 
 prepare_tasks <- function(chat_base, prompts, n_texts) {
-    # Each time clone the base chat
-    chat <- chat_base$clone()
-    # Set a system prompt
-    chat$set_system_prompt(prompts$system)
+    # General case when there may be > 1 system prompts
+    ## (e.g. multiple domain roles)
+    chats <- lapply(
+        prompts$system,
+        function(system_prompt) {
+            # Each time clone the base chat
+            chat <- chat_base$clone()
+            # Set a system prompt
+            chat$set_system_prompt(system_prompt)
+            return(chat)
+        }
+    )
     
     check_tasks(prompts$task, n_texts)
     
     list(
-        chat = chat,
+        chats = chats,
         tasks = prompts$task
     )
 }
@@ -207,7 +215,11 @@ prepare_expert_chats <- function(
         chat_base,
         expert_role = c('linguist', 'domain', 'interpreter')
 ) {
-    expert_role <- match.arg(expert_role)
+    expert_role <- match.arg(
+        expert_role,
+        c('linguist', 'domain', 'interpreter'),
+        several.ok = FALSE
+    )
     
     # Загружаем инструкции для эксперта
     prompts <- with(
@@ -218,11 +230,59 @@ prepare_expert_chats <- function(
             text = texts,
             target = targets,
             target_type = target_types,
-            domain = domain_role
+            domain = domain_roles
         )
     )
     
     prepare_tasks(chat_base, prompts, length(inputs$texts))
+}
+
+execute_role <- function(
+        expert_role,
+        inputs,
+        chat_base,
+        info,
+        rpm = 500,
+        verbose = TRUE
+    ) {
+    tasks <- prepare_expert_chats(
+        inputs,
+        chat_base = chat_base,
+        expert_role = expert_role
+    )
+    
+    if (verbose) cat('    📊', glue::glue('{info}...'), '\n')
+    
+    # If multiple system_prompts, e.g
+    if (length(tasks$chats) > 1) {
+        # Use sequential analysis
+        results <- vapply(
+            seq_along(tasks$chats),
+            function(task_i) {
+                chat <- tasks$chat[[task_i]]
+                chat$chat(tasks$tasks[[task_i]], echo = 'none')
+            },
+            character(1)
+        ) |> catch(tolower(info))
+    } else {
+        # Use parallel analysis
+        results <- ellmer::parallel_chat_text(
+            # Unpack the Chat object
+            chat = tasks$chats[[1]],
+            prompts = tasks$tasks,
+            rpm = rpm
+        ) |> catch(tolower(info))
+    }
+    
+    if (!is.character(results) || length(results) != length(inputs$texts)) {
+        stop(
+            glue::glue(
+                'Unexpected results in {info}: input and output lengths differ.'
+            )
+        )
+    }
+    
+    results
 }
 
 stage_1_parallel_analysis <- function(
@@ -236,63 +296,35 @@ stage_1_parallel_analysis <- function(
     tictoc::tic('Stage 1')
     if (verbose) {
         cat(
-            glue::glue("⏳ Stage 1: Parallel expert analysis ({n} items)..."), 
+            glue::glue("⏳ Stage 1: Expert analysis ({n} items)..."), 
             "\n"
         )
     }
     
-    ### Linguist ----
-    if (verbose) cat("   📊 Linguistic analysis...\n")
-    
-    linguist_tasks <- prepare_expert_chats(
-        inputs,
-        chat_base = chat_base,
-        expert_role = 'linguist'
+    expert_roles <- c('linguist', 'domain', 'interpreter')
+    expert_info <- c(
+        linguist = 'Linguistic analysis',
+        domain = 'Domain expert analysis',
+        interpreter = 'Social media interpretation'
     )
-    
-    linguistic_results <- ellmer::parallel_chat_text(
-        chat = linguist_tasks$chat,
-        prompts = linguist_tasks$tasks,
-        rpm = rpm
-    ) |> catch('linguistic analysis')
-    
-    ### Domain ----
-    if (verbose) cat("   📊 Domain expert analysis...\n")
-    
-    domain_tasks <- prepare_expert_chats(
-        inputs,
-        chat_base = chat_base,
-        expert_role = 'domain'
+    analysis_results <- lapply(
+        expert_roles,
+        function(role) {
+            execute_role(
+                role,
+                inputs = inputs,
+                chat_base = chat_base,
+                info = expert_info[[role]],
+                rpm = rpm,
+                verbose = verbose
+            )
+        }
     )
-    
-    domain_results <- ellmer::parallel_chat_text(
-        chat = domain_tasks$chat,
-        prompts = domain_tasks$tasks,
-        rpm = rpm
-    ) |> catch('domain expert analysis')
-    
-    ### Social Media ----
-    if (verbose) cat("   📊 Social media interpretation...\n")
-    
-    interpreter_tasks <- prepare_expert_chats(
-        inputs,
-        chat_base = chat_base,
-        expert_role = 'interpreter'
-    )
-    
-    social_results <- ellmer::parallel_chat_text(
-        chat = interpreter_tasks$chat,
-        prompts = interpreter_tasks$tasks,
-        rpm = rpm
-    ) |> catch('social media interpretation')
+    names(analysis_results) <- c('linguistic', 'domain', 'social_media')
     
     # The result is a list of character vectors of length length(texts)
     ## One vector for each role
-    inputs[['analysis_results']] <- list(
-        linguistic = linguistic_results,
-        domain = domain_results,
-        social_media = social_results
-    )
+    inputs[['analysis_results']] <- analysis_results
     
     tictoc::toc(func.toc = stage_toc, quiet = !verbose)
     
@@ -363,7 +395,7 @@ stage_2_parallel_debates <- function(
         debater_tasks,
         function(debater_task) {
             ellmer::parallel_chat_text(
-                chat = debater_task$chat,
+                chat = debater_task$chat[[1]],
                 prompts = debater_task$tasks,
                 rpm = rpm
             ) |> catch('stance debates')
@@ -424,7 +456,7 @@ stage_3_parallel_judgment <- function(
     
     # Parallel decisions
     inputs[['judgment_results']] <- ellmer::parallel_chat_structured(
-        chat = judger_tasks$chat,
+        chat = judger_tasks$chat[[1]],
         prompts = judger_tasks$tasks,
         type = type_stance_analysis(inputs$lang),
         rpm = rpm,
@@ -450,7 +482,7 @@ stage_3_parallel_judgment <- function(
 #' @param chat_base an [ellmer::Chat] object from
 #' @param type either "object" or "statement" (recycled if length 1)
 #' @param lang Language code ("en", "ru", "uk")
-#' @param domain_role Domain expert role (default: "sociologist")
+#' @param domain_role Domain expert role (default: "sociologist", recycled if length 1)
 #' @param verbose Show progress messages
 #' @param rpm Rate limit (requests per minute)
 #' @param ... Other arguments passed to [ellmer::parallel_chat_structured()]
@@ -498,6 +530,8 @@ llm_stance <- function(
         stop("`text` cannot be empty")
     }
     
+    n <- length(text)
+    
     if (!is.character(target)) {
         stop("`target` must be a character vector")
     }
@@ -525,9 +559,23 @@ llm_stance <- function(
             'social commentator'
         )
     } else {
-        if (!is.character(domain_role) || length(domain_role) != 1) {
-            stop("`domain_role` must be a single character string")
+        if (!is.character(domain_role)|| length(domain_role) < 1) {
+            stop("`domain_role` must be a character vector")
         }
+        if (!(length(domain_role) == 1 | length(domain_role) == n)) {
+            stop(
+                glue::glue(
+                    "`domain_role` must have length 1 or {n} (same as `text`). "
+                ),
+                glue::glue("Got {length(arg)}.")
+            )
+        }
+    }
+    
+    if (length(domain_role) > 1) {
+        warning(
+            'Multiple domain roles detected. Parallel execution is unsupported.'
+        )
     }
     
     if (!ellmer:::is_chat(chat_base)) {
@@ -535,8 +583,6 @@ llm_stance <- function(
     }
     
     ## Preparation ----
-    n <- length(text)
-    
     target <- recycle_arg(target, n, "target")
     type <- recycle_arg(type, n, "type")
     
@@ -547,7 +593,7 @@ llm_stance <- function(
         targets = target,
         target_types = target_types,
         lang = lang,
-        domain_role = domain_role,
+        domain_roles = domain_role,
         chat_base = chat_base
     )
     
@@ -558,7 +604,10 @@ llm_stance <- function(
         cat(strrep("=", 70), "\n\n")
         cat(glue::glue("Types: {paste(unique(type), collapse = ', ')}"), "\n")
         cat(glue::glue("Language: {lang}"), "\n")
-        cat(glue::glue("Domain role: {domain_role}"), "\n")
+        cat(
+            glue::glue("Domain roles: {paste(unique(domain_role), collapse = ', ')}"),
+            "\n"
+        )
         cat("\n")
     }
     

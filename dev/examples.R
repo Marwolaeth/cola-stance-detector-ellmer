@@ -295,12 +295,12 @@ as.data.frame(res_ru)
 files <- list.files(file.path('examples'), full.names = TRUE)
 txt <- vapply(files, readr::read_file, character(1))
 llm_stance(
-    txt,
+    txt[1:3],
     target = 'Роскомнадзор',
     chat_base = chat_base,
     type = 'object',
     lang = 'ru',
-    domain_role = 'политический обозреватель',
+    domain_role = c('политический обозреватель', 'социолог', 'IT-эксперт'),
     verbose = TRUE,
     rpm = 10
 )
