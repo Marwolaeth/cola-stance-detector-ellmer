@@ -221,6 +221,10 @@ prepare_tasks <- function(chat_base, prompts, n_texts) {
         }
     )
     
+    if (length(chats) != 1 & length(chats) != n_texts) {
+        stop("Length of system and user prompts must match.")
+    }
+
     check_tasks(prompts$task, n_texts)
     
     list(
@@ -280,10 +284,20 @@ execute_role <- function(
             seq_along(tasks$chats),
             function(task_i) {
                 chat <- tasks$chats[[task_i]]
-                chat$chat(tasks$tasks[[task_i]], echo = 'none')
-            },
+                result <- chat$chat(tasks$tasks[[task_i]], echo = 'none')
+                if (!is.character(result)) {
+                    stop(
+                        glue::glue(
+                            'Unexpected results in {info} {task_i}.'
+                        )
+                    )
+                }
+                result
+            } |> catch(
+                paste(tolower(info), task_i)
+            ),
             character(1)
-        ) |> catch(tolower(info))
+        )
     } else {
         # Use parallel analysis
         results <- ellmer::parallel_chat_text(
@@ -373,6 +387,10 @@ prepare_debater_chats <- function(
         )
     )
     
+    if (length(prompts$system) > 1) {
+        stop('Multiple system prompts are not allowed at stage 2')
+    }
+
     prepare_tasks(chat_base, prompts, length(inputs$texts))
 }
 
