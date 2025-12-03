@@ -449,8 +449,6 @@ prepare_judger_chats <- function(
         )
     )
     
-    print(prompts$system)
-    
     prepare_tasks(chat_base, prompts, length(inputs$texts))
 }
 
@@ -459,8 +457,6 @@ stage_3_parallel_judgment <- function(
         chat_base,
         verbose = TRUE,
         rpm = 500,
-        objects = FALSE,
-        statements = FALSE,
         ...
 ) {
     n <- length(inputs$texts)
@@ -476,9 +472,7 @@ stage_3_parallel_judgment <- function(
     
     judger_tasks <- prepare_judger_chats(
         inputs,
-        chat_base = chat_base,
-        objects = objects,
-        statements = FALSE
+        chat_base = chat_base
     )
     
     if (verbose) cat("   ⚖️ Running parallel judgments...\n")
