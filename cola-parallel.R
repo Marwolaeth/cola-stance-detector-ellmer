@@ -279,7 +279,7 @@ execute_role <- function(
         results <- vapply(
             seq_along(tasks$chats),
             function(task_i) {
-                chat <- tasks$chat[[task_i]]
+                chat <- tasks$chats[[task_i]]
                 chat$chat(tasks$tasks[[task_i]], echo = 'none')
             },
             character(1)
