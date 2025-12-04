@@ -1,8 +1,6 @@
 # TBD ----
-# 1. Check for NAs
-# 2. Automatic language detection with cld2::detect_language()
-# 3. Up to three base chats as argument
-# 4. Different scales: + numeric, likert
+# 1. Up to three base chats as argument
+# 2. Different scales: + numeric, likert
 
 # Utils ----
 catch <- function(expr, expr_name = deparse(substitute(expr))) {
