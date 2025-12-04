@@ -1,7 +1,8 @@
 # TBD ----
-# 1. Automatic language detection with cld2::detect_language()
-# 2. Up to three base chats as argument
-# 3. Different scales: + numeric, likert
+# 1. Check for NAs
+# 2. Automatic language detection with cld2::detect_language()
+# 3. Up to three base chats as argument
+# 4. Different scales: + numeric, likert
 
 # Utils ----
 catch <- function(expr, expr_name = deparse(substitute(expr))) {
@@ -556,7 +557,7 @@ llm_stance <- function(
         target,
         chat_base,
         type = c('object', 'statement'),
-        lang = rcola_available_languages(),
+        lang = NULL,
         domain_role = NULL,
         verbose = TRUE,
         rpm = 20,
@@ -587,8 +588,16 @@ llm_stance <- function(
         stop("`type` must be a character vector")
     }
     
+    if (is.null(lang)) {
+        lang <- cld2::detect_language(text[[1]], lang_code = TRUE)
+        warning('The analysis language was automatically detected.')
+    }
     if (is.character(lang) & length(lang) == 1) {
-        lang <- match.arg(lang, rcola_available_languages(), several.ok = FALSE)
+        # Проверка языка
+        if (!lang %in% rcola_available_languages()) {
+            stop("Language '", lang, "' not available. Use: ", 
+                 paste(rcola_available_languages(), collapse = ", "))
+        }
     } else {
         stop("`lang` must be a single character string")
     }

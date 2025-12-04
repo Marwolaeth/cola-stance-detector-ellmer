@@ -18,7 +18,8 @@ openrouter_key <- function() {
 
 chat_base <- chat_openrouter(
     # model = 'x-ai/grok-4.1-fast:free',
-    model = 'alibaba/tongyi-deepresearch-30b-a3b:free',
+    # model = 'alibaba/tongyi-deepresearch-30b-a3b:free',
+    model = 'openai/gpt-oss-20b:free',
     credentials = openrouter_key,
     api_args = list(temperature = 0)
 )
@@ -59,7 +60,7 @@ res_en <- llm_stance(
     target = test_data_en$target,
     type = test_data_en$target_type,
     chat_base = chat_base,
-    lang = 'en',
+    # lang = 'en',
     domain_role = 'political commentator',
     verbose = TRUE
 )
@@ -112,7 +113,7 @@ res_uk <- llm_stance(
     target = test_data_uk$target,
     type = test_data_uk$target_type,
     chat_base = chat_base,
-    lang = 'uk',
+    # lang = 'uk',
     domain_role = 'оглядач'
 )
 
@@ -198,7 +199,7 @@ res_ru <- llm_stance(
     target = test_data_ru$target,
     type = test_data_ru$target_type,
     chat_base = chat_base,
-    lang = 'ru',
+    # lang = 'ru',
     domain_role = 'политический обозреватель'
 )
 
