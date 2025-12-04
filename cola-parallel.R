@@ -1,4 +1,7 @@
-# TBD: vector of domain roles
+# TBD ----
+# 1. Automatic language detection with cld2::detect_language()
+# 2. Up to three base chats as argument
+# 3. Different scales: + numeric, likert
 
 # Utils ----
 catch <- function(expr, expr_name = deparse(substitute(expr))) {
