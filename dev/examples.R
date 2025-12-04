@@ -18,7 +18,7 @@ openrouter_key <- function() {
 
 chat_base <- chat_openrouter(
     # model = 'x-ai/grok-4.1-fast:free',
-    model = 'allenai/olmo-3-32b-think:free',
+    model = 'alibaba/tongyi-deepresearch-30b-a3b:free',
     credentials = openrouter_key,
     api_args = list(temperature = 0)
 )
