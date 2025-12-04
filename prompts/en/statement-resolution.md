@@ -3,7 +3,7 @@
 ## Basic Principle
 When analysing the position of text in relation to an object, pronouns, ellipsis, and context establish actual references. Do not require explicit naming.
 
-## Rules
+## Consider the following guidelines
 
 1. **Pronouns**: "she", "he", "they", "it" refer to the object if:
    - The object is the most recent noun phrase
@@ -144,3 +144,4 @@ Consider the following rules:
 | "Social networks are dangerous" | "Social networks are useful for business but harm psychology" | Neutral | Ambivalent position |
 | "Digitalisation improves life" | "Young people cannot live without the internet" | Neutral | Statement of fact, not evaluation |
 | "Russian social networks are dangerous" | "I actively use VKontakte" | Neutral | Behaviour does not imply position |
+| "Climate changes due to humans" | "Support our work on Patreon" | Neutral | Irrelevant |

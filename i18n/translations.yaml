@@ -11,7 +11,15 @@ en:
   stage_2: "Debating"
   stage_3: "Final decision"
   result: "FINAL STANCE"
-  type_description: "Author's stance towards the target"
+  type_description: |
+    Author's stance towards the target statement or object.
+  
+    - If target is an OBJECT (person, brand, entity): evaluate whether 
+    the author expresses positive, negative, or neutral sentiment.
+  
+    - If target is a STATEMENT (proposition, claim, ideologeme): evaluate 
+    whether the author AGREES (Positive), DISAGREES (Negative), or 
+    remains NEUTRAL towards it.
   explanation_description: "Explain your stance classification in one concise paragraph, covering all decision criteria."
   stance_positive: "positive"
   stance_neutral: "neutral"
@@ -31,7 +39,16 @@ uk:
   stage_2: "Проведення дебатів"
   stage_3: "Винесення остаточного рішення"
   result: "ОСТАТОЧНА ПОЗИЦІЯ"
-  type_description: "Остаточно визначена позиція автора щодо цілі."
+  type_description: |
+    Ставлення автора до цільового твердження або об'єкта.
+  
+    - Якщо цільовий об'єкт — СУТНІСТЬ (людина, бренд, організація): 
+    оцініть, чи виражає автор позитивне, негативне або нейтральне 
+    ставлення.
+  
+    - Якщо цільовий об'єкт — ТВЕРДЖЕННЯ (судження, теза, висловлювання, ідеологема): 
+    оцініть, чи ПОГОДЖУЄТЬСЯ автор (Positive), НЕ ПОГОДЖУЄТЬСЯ (Negative) 
+    чи залишається НЕЙТРАЛЬНИМ.
   explanation_description: "Поясніть вашу класифікацію позиції автора в одному стислому абзаці, охопивши всі критерії рішення."
   stance_positive: "позитивна"
   stance_neutral: "нейтральна"
@@ -43,15 +60,24 @@ ru:
     gen: "объекта"
     dat: "объекту"
   statement:
-    gen: "утверждения"
-    dat: "утверждению"
+    gen: "суждения"
+    dat: "суждению"
   analysis: "Анализ текста для"
   text: "Текст"
   stage_1: "Проведение многомерного анализа"
   stage_2: "Проведение дебатов"
   stage_3: "Вынесение окончательного решения"
   result: "ОКОНЧАТЕЛЬНАЯ ПОЗИЦИЯ"
-  type_description: "Окончательно определённая позиция автора по отношению к цели."
+  type_description: |
+    Отношение автора к целевому утверждению или объекту.
+  
+    - Если целевой объект — СУЩНОСТЬ (человек, бренд, организация): 
+    оцените, выражает ли автор позитивное, негативное или нейтральное 
+    отношение.
+  
+    - Если целевой объект — УТВЕРЖДЕНИЕ (суждение, тезис, высказывание, идеологема): 
+    оцените, СОГЛАСЕН ли автор (Positive), НЕ СОГЛАСЕН (Negative) или 
+    остается НЕЙТРАЛЬНЫМ.
   explanation_description: "Поясните вашу классификацию позиции в одном кратком абзаце, охватив все критерии решения."
   stance_positive: "позитивная"
   stance_neutral: "нейтральная"
