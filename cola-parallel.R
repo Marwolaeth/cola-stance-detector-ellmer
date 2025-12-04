@@ -281,16 +281,12 @@ execute_role <- function(
     if (length(tasks$chats) > 1) {
         # Use sequential analysis
         results <- vapply(
-            seq_along(tasks$chats),
+            seq_along(tasks$tasks),
             function(task_i) {
                 chat <- tasks$chats[[task_i]]
                 result <- chat$chat(tasks$tasks[[task_i]], echo = 'none')
                 if (!is.character(result)) {
-                    stop(
-                        glue::glue(
-                            'Unexpected results in {info} {task_i}.'
-                        )
-                    )
+                    stop(glue::glue('Unexpected results in {info} {task_i}.'))
                 }
                 result
             },
@@ -464,6 +460,10 @@ prepare_judger_chats <- function(
             add_statement_resolution = 'statement' %in% types,
         )
     )
+    
+    if (length(prompts$system) > 1) {
+        stop('Multiple system prompts are not allowed at stage 3')
+    }
     
     prepare_tasks(chat_base, prompts, length(inputs$texts))
 }
