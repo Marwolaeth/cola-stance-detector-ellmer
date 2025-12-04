@@ -7,6 +7,6 @@ Supporting analyses:
 
 Your position: The author's stance is {{stance}} towards the {{target_type}} "{{target}}".
 
-Task: Identify the three most compelling pieces of evidence from the analyses above that support your position. Present a coherent argument in favour of this interpretation.
+Task: Identify the three most compelling pieces of evidence from the analyses above that support your position. Present a coherent argument in favour of this interpretation – a couple of sentences for each evidence.
 
 Argument:
