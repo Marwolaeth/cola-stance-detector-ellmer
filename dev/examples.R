@@ -17,7 +17,8 @@ openrouter_key <- function() {
 }
 
 chat_base <- chat_openrouter(
-    model = 'x-ai/grok-4.1-fast:free',
+    # model = 'x-ai/grok-4.1-fast:free',
+    model = 'arcee-ai/trinity-mini:free',
     credentials = openrouter_key,
     api_args = list(temperature = 0, max_tokens = 1000)
 )
@@ -300,7 +301,7 @@ llm_stance(
     chat_base = chat_base,
     type = 'object',
     lang = 'ru',
-    domain_role = c('политический обозреватель', 'социолог', 'IT-эксперт'),
+    domain_role = c('политический обозреватель'),
     verbose = TRUE,
     rpm = 10
 )
