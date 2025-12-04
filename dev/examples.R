@@ -18,9 +18,9 @@ openrouter_key <- function() {
 
 chat_base <- chat_openrouter(
     # model = 'x-ai/grok-4.1-fast:free',
-    model = 'arcee-ai/trinity-mini:free',
+    model = 'allenai/olmo-3-32b-think:free',
     credentials = openrouter_key,
-    api_args = list(temperature = 0, max_tokens = 1000)
+    api_args = list(temperature = 0)
 )
 
 # --- ПРИМЕРЫ ИСПОЛЬЗОВАНИЯ ---
