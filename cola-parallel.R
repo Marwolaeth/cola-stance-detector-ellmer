@@ -645,8 +645,57 @@ llm_stance <- function(
         )
     }
     
-    if (!ellmer:::is_chat(chat_base)) {
-        stop("`chat_base` must be a Chat object")
+    ### Chat Validation ----
+    # Validate and arrange the `chat_base` argument across stages
+    # 
+    # Recommendations (see vignette and docstrings):
+    # 1. Expert analysis (Stage 1):
+    #     - Excellent real-world awareness
+    #     - Decent reasoning skills
+    #     - Sufficient writing skills
+    #     - Context width depends on task
+    #     - Structured output: NOT required
+    # 2. Stance debates (Stage 2):
+    #     - Sufficient context width
+    #     - Creative and writing skills
+    #     - Structured output: NOT required
+    # 3. Stance decision (Stage 3):
+    #     - Large context width
+    #     - Excellent reasoning skills
+    #     - Excellent real-world awareness
+    #     - Structured output: REQUIRED
+    chats <- if (is.list(chat_base)) {
+        # Validate each element
+        for (i in seq_along(chat_base)) {
+            if (!ellmer:::is_chat(chat_base[[i]])) {
+                stop(
+                    glue::glue("Element {i} of `chat_base` "),
+                    "is not an `ellmer::Chat` object."
+                )
+            }
+        }
+        
+        # Arrange based on list length
+        indices <- switch(
+            length(chat_base),
+            `1` = c(1, 1, 1),
+            `2` = c(1, 1, 2),
+            `3` = c(1, 2, 3),
+            stop(
+                "`chat_base` must have 1, 2, or 3 elements. ",
+                "You provided ", length(chat_base), "."
+            )
+        )
+        lapply(indices, \(i) chat_base[[i]]$clone(deep = TRUE))
+        
+    } else if (ellmer:::is_chat(chat_base)) {
+        rep(list(chat_base$clone(deep = TRUE)), times = 3)
+        
+    } else {
+        stop(
+            "`chat_base` must be an `ellmer::Chat` object ",
+            "or a list of 1-3 `ellmer::Chat` objects."
+        )
     }
     
     ## Preparation ----
