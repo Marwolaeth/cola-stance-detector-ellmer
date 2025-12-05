@@ -1,6 +1,7 @@
 # TBD ----
 # 1. Up to three base chats as argument
 # 2. Different scales: + numeric, likert
+# 3. Nice Unicode handling in verbose()
 
 # Utils ----
 catch <- function(expr, expr_name = deparse(substitute(expr))) {
@@ -580,7 +581,7 @@ llm_stance <- function(
         ...
 ) {
     ## Validation ----
-    tictoc::tic()
+    tictoc::tic(msg = '')
     
     if (!is.character(text)) {
         stop("`text` must be a character vector")
@@ -710,8 +711,7 @@ llm_stance <- function(
         types = type,
         target_types = target_types,
         lang = lang,
-        domain_roles = domain_role,
-        chat_base = chat_base
+        domain_roles = domain_role
     )
     
     if (verbose) {
@@ -730,11 +730,11 @@ llm_stance <- function(
     
     ## Analysis ----
     output <- inputs |>
-        stage_1_parallel_analysis(chat_base, verbose, rpm) |>
+        stage_1_parallel_analysis(chats[[1]], verbose, rpm) |>
         validate_stage('Stage 1 (Expert analysis)') |>
-        stage_2_parallel_debates(chat_base, verbose, rpm) |>
+        stage_2_parallel_debates(chats[[2]], verbose, rpm) |>
         validate_stage('Stage 2 (Stance debates)') |>
-        stage_3_parallel_judgment(chat_base, verbose, rpm, ...)
+        stage_3_parallel_judgment(chats[[3]], verbose, rpm, ...)
     
     if (is.null(output$judgment_results) || nrow(output$judgment_results) != n) {
         stop("Final stance judgement returned unexpected results")

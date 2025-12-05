@@ -1,39 +1,4 @@
-files <- list.files(file.path('examples'), full.names = TRUE)
-txt <- vapply(files, readr::read_file, character(1))
-
-prompts <- get_prompts(
-    'domain',
-    lang = 'ru',
-    text = txt[1:3],
-    domain = c('социолог', 'политолог', 'спелеолог'),
-    target = 'Роскомнадзор',
-    target_type = 'object'
-)
-
-inputs <- list(
-    lang = 'ru',
-    texts = txt[1:3],
-    domain_roles = c('социолог', 'политолог', 'спелеолог'),
-    targets = 'Роскомнадзор',
-    types = 'object',
-    target_types = 'объекту'
-)
-
-prepare_expert_chats(inputs, chat_base, expert_role = 'domain')
-
-inputs <- list(
-    lang = 'ru',
-    texts = c(
-        'Роскомнадзор хороший',
-        'Думаю, это правда: Роскомнадзор защищает пользователей',
-        'Роскомндзор плохой'
-    ),
-    domain_roles = c('социолог', 'политолог', 'спелеолог'),
-    targets = c('Роскомнадзор', 'Роскомнадзор защищает пользователей', 'Роскомнадзор'),
-    types = c('object', 'statement', 'object'),
-    target_types = sapply(c('object', 'statement', 'object'), type_to_term, lang = 'ru')
-)
-
+# Multiple Domains ----
 llm_stance(
     c(
         'Роскомнадзор хороший',
@@ -47,6 +12,7 @@ llm_stance(
     chat_base = chat_base
 )
 
+# Additional Prompts ----
 texts <- c(
     '"Не ходите в этот вражеский интырнет, особенно с ВПНами" - сказал депутат, чьи дети живут в Париже и ни в чем себе не отказывают',
     'Эксперты в один голос утверждают: использование VPN - не решение проблем, а огромный риск',
@@ -63,7 +29,38 @@ res <- llm_stance(
     verbose = TRUE
 )
 
-### MWS ----
+# Multiple chats ----
+openrouter_key <- function() {
+    list(Authorization = paste(
+        'Bearer', Sys.getenv('OPENROUTER_API_KEY')
+    ))
+}
+
+chat_analysis <- chat_openrouter(
+    model = 'amazon/nova-2-lite-v1:free',
+    credentials = openrouter_key,
+    api_args = list(temperature = 0, max_tokens = 1000)
+)
+
+chat_decision <- chat_openrouter(
+    model = 'tngtech/tng-r1t-chimera:free',
+    credentials = openrouter_key,
+    api_args = list(temperature = 0)
+)
+
+# see examples.R
+indices <- c(1, 3:4, 6:10)
+res_ru <- llm_stance(
+    text = test_data_ru$text[indices],
+    target = 'Роскомнадзор',
+    type = 'object',
+    chat_base = list(chat_analysis, chat_analysis, chat_decision),
+    # lang = 'ru',
+    domain_role = 'политический обозреватель'
+)
+
+# Providers ----
+## MWS ----
 oc_credentials <- function() {
     list(Authorization = paste(
         'Bearer', Sys.getenv('HUGGINGFACE_API_KEY')
@@ -82,7 +79,7 @@ chat_base <- chat_openai_compatible(
 
 chat_base$chat('Здравствуйте', echo = 'none')
 
-# Yandex ----
+## Yandex ----
 YANDEX_CLOUD_FOLDER = "b1gsm63ta97sfo8jpbgu"
 # YANDEX_CLOUD_API_KEY = "<API_key_value>"
 YANDEX_CLOUD_MODEL = "aliceai-llm/latest"
