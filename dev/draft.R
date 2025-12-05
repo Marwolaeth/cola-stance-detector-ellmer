@@ -45,7 +45,7 @@ chat_analysis <- chat_openrouter(
 chat_decision <- chat_openrouter(
     model = 'tngtech/tng-r1t-chimera:free',
     credentials = openrouter_key,
-    api_args = list(temperature = 0)
+    api_args = list(temperature = 0, max_tokens = 1000)
 )
 
 # see examples.R
@@ -54,7 +54,7 @@ res_ru <- llm_stance(
     text = test_data_ru$text[indices],
     target = 'Роскомнадзор',
     type = 'object',
-    chat_base = list(chat_analysis, chat_analysis, chat_decision),
+    chat_base = list(chat_analysis, chat_decision),
     # lang = 'ru',
     domain_role = 'политический обозреватель'
 )
