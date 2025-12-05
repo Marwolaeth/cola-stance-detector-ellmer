@@ -11,7 +11,7 @@ catch <- function(expr, expr_name = deparse(substitute(expr))) {
     tryCatch(
         expr,
         error = function(e) {
-            stop(glue::glue("Error in {expr_name}: {e$message}"))
+            stop(glue::glue("Error in {expr_name}: {e$message}", call. = FALSE))
         }
     )
 }
@@ -22,7 +22,10 @@ validate_inputs <- function(inputs, expected_length, input_name = 'Inputs') {
     }
     
     if (is.null(inputs) || length(inputs) != expected_length) {
-        stop(glue::glue("{input_name} returned unexpected results"))
+        stop(
+            glue::glue("{input_name} returned unexpected results"),
+            call. = FALSE
+        )
     }
 }
 
@@ -36,7 +39,8 @@ recycle_arg <- function(arg, n, arg_name) {
             glue::glue(
                 "`{arg_name}` must have length 1 or {n} (same as `text`). "
             ),
-            glue::glue("Got {length(arg)}.")
+            glue::glue("Got {length(arg)}."),
+            call. = FALSE
         )
     }
 }
@@ -56,7 +60,7 @@ stage_toc <- function(tic, toc, msg) {
 
 validate_stage <- function(x, stage_name) {
     if (is.null(x)) {
-        stop(glue::glue("{stage_name} returned NULL"))
+        stop(glue::glue("{stage_name} returned NULL"), call. = FALSE)
     }
     x
 }
@@ -197,14 +201,16 @@ check_tasks <- function(tasks, expected_length) {
     if (length(tasks) != expected_length || !is.character(tasks)) {
         stop(
             'User prompt interpolation returned unexpected results. ',
-            'Consider checking variable placeholders in user templates.'
+            'Consider checking variable placeholders in user templates.',
+            call. = FALSE
         )
     }
     
     if (any(nchar(tasks) == 0)) {
         stop(
             'User prompt is empty after interpolation. ',
-            'Check that all required variables are provided.'
+            'Check that all required variables are provided.',
+            call. = FALSE
         )
     }
 }
@@ -288,7 +294,10 @@ execute_role <- function(
                 chat <- tasks$chats[[task_i]]
                 result <- chat$chat(tasks$tasks[[task_i]], echo = 'none')
                 if (!is.character(result)) {
-                    stop(glue::glue('Unexpected results in {info} {task_i}.'))
+                    stop(
+                        glue::glue('Unexpected results in {info} {task_i}.'),
+                        call. = FALSE
+                    )
                 }
                 result
             },
@@ -308,7 +317,8 @@ execute_role <- function(
         stop(
             glue::glue(
                 'Unexpected results in {info}: input and output lengths differ.'
-            )
+            ),
+            call. = FALSE
         )
     }
     
@@ -384,7 +394,11 @@ prepare_debater_chats <- function(
     )
     
     if (length(prompts$system) > 1) {
-        stop('Multiple system prompts are not allowed at stage 2')
+        stop(
+            'Multiple system prompts are not allowed at stage 2',
+            'Consider checking variable placeholders in system templates.',
+            call. = FALSE
+        )
     }
 
     prepare_tasks(chat_base, prompts, length(inputs$texts))
@@ -464,7 +478,11 @@ prepare_judger_chats <- function(
     )
     
     if (length(prompts$system) > 1) {
-        stop('Multiple system prompts are not allowed at stage 3')
+        stop(
+            'Multiple system prompts are not allowed at stage 3',
+            'Consider checking variable placeholders in system templates.',
+            call. = FALSE
+        )
     }
     
     prepare_tasks(chat_base, prompts, length(inputs$texts))
