@@ -216,7 +216,7 @@ prepare_tasks <- function(chat_base, prompts, n_texts) {
         prompts$system,
         function(system_prompt) {
             # Each time clone the base chat
-            chat <- chat_base$clone()
+            chat <- chat_base$clone(deep = TRUE)
             # Set a system prompt
             chat$set_system_prompt(system_prompt)
             return(chat)
