@@ -57,7 +57,7 @@ res_ru <- llm_stance(
     type = 'object',
     # scale = 'numeric',
     chat_base = list(chat_analysis, chat_decision),
-    prompts_dir = 'prompts/ru',
+    prompts_dir = 'prompts/custom',
     # lang = 'ru',
     domain_role = 'политический обозреватель'
 )

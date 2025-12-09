@@ -708,10 +708,11 @@ llm_stance <- function(
     }
     
     ## Prompts ----
-    DEFAULT_PROMPTS_DIR <- system.file(
-        file.path('prompts', lang),
-        package = 'rcola'
-    )
+    # DEFAULT_PROMPTS_DIR <- system.file(
+    #     file.path('prompts', lang),
+    #     package = 'rcola'
+    # )
+    DEFAULT_PROMPTS_DIR <- file.path('prompts', lang)
     
     search_dirs <- c(prompts_dir, DEFAULT_PROMPTS_DIR) |> 
         Filter(f = \(x) !is.null(x) && dir.exists(x))
