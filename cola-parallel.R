@@ -143,18 +143,23 @@ get_prompts <- function(
         task = ellmer::interpolate_file(template_user, ...)
     )
     
-    # Check for empty strings
-    if (any(nchar(prompts$system) == 0)) {
-        stop(
-            'System prompt is empty after interpolation. ',
-            'Check that all required variables are provided.'
+    # Check for user prompt existence
+    if (is.null(prompts$task)) {
+        cli::cli_abort(
+            "User prompt is NULL for role {.val {role}}"
         )
     }
     
-    # Check for user prompt existence
-    ## 
-    if (is.null(prompts$task)) {
-        stop(glue::glue('User prompt for the `{role}` is NULL'))
+    # Check for empty strings
+    if (any(nchar(prompts$system) == 0)) {
+        cli::cli_abort(
+            "System prompt is empty after interpolation for role {.val {role}}"
+        )
+    }
+    if (any(nchar(prompts$task) == 0)) {
+        cli::cli_abort(
+            "User prompt is empty after interpolation for role {.val {role}}"
+        )
     }
     
     prompts
