@@ -4,6 +4,14 @@
 # 3. Nice Unicode handling in verbose()
 
 # Utils ----
+truncate <- function(x, a, b) {
+    stopifnot(is.numeric(x))
+    stopifnot(is.numeric(a))
+    stopifnot(is.numeric(b))
+    
+    pmin(pmax(x, a), b)
+}
+
 catch <- function(expr, expr_name = deparse(substitute(expr))) {
     if (!is.character(expr_name)) {
         stop("`expr_name` must be a character string")
@@ -78,21 +86,6 @@ type_to_term <- function(
         type,
         object = l(lang, 'object', 'dat'),
         statement = l(lang, 'statement', 'dat')
-    )
-}
-
-type_stance_analysis <- function(lang) {
-    # A schema for the structured output
-    type_stance <- type_enum(
-        values = c('Positive', 'Negative', 'Neutral'),
-        description = l(lang, 'type_description')
-    )
-    
-    type_object(
-        stance = type_stance,
-        explanation = type_string(
-            description = l(lang, 'explanation_description')
-        )
     )
 }
 
@@ -239,6 +232,40 @@ prepare_tasks <- function(chat_base, prompts, n_texts) {
     list(
         chats = chats,
         tasks = prompts$task
+    )
+}
+
+# Schemas ----
+type_stance_categorical <- function(lang) {
+    type_enum(
+        values = c('Positive', 'Negative', 'Neutral'),
+        description = ellmer::interpolate_file(
+            file.path('prompts', lang, 'description-categorical.md')
+        )
+    )
+}
+
+type_stance_numeric <- function(lang) {
+    type_number(
+        description = ellmer::interpolate_file(
+            file.path('prompts', lang, 'description-numeric.md')
+        )
+    )
+}
+
+type_stance_analysis <- function(lang, scale) {
+    # A schema for the structured output
+    type_stance <- switch(
+        scale,
+        numeric = type_stance_numeric(lang),
+        type_stance_categorical(lang)
+    )
+    
+    type_object(
+        stance = type_stance,
+        explanation = type_string(
+            description = l(lang, 'explanation_description')
+        )
     )
 }
 
@@ -518,7 +545,7 @@ stage_3_parallel_judgment <- function(
     inputs[['judgment_results']] <- ellmer::parallel_chat_structured(
         chat = judger_tasks$chats[[1]],
         prompts = judger_tasks$tasks,
-        type = type_stance_analysis(inputs$lang),
+        type = type_stance_analysis(inputs$lang, inputs$scale),
         rpm = rpm,
         convert = TRUE,
         ...
@@ -575,6 +602,7 @@ llm_stance <- function(
         chat_base,
         type = c('object', 'statement'),
         lang = rcola_available_languages(),
+        scale = c('categorical', 'numeric', 'likert'),
         domain_role = NULL,
         verbose = TRUE,
         rpm = 20,
@@ -618,6 +646,8 @@ llm_stance <- function(
     } else {
         stop("`lang` must be a single character string")
     }
+    
+    scale <- match.arg(scale, c('categorical', 'numeric', 'likert'))
     
     if (is.null(domain_role)) {
         domain_role <- switch(
@@ -711,6 +741,7 @@ llm_stance <- function(
         types = type,
         target_types = target_types,
         lang = lang,
+        scale = scale,
         domain_roles = domain_role
     )
     
@@ -738,6 +769,15 @@ llm_stance <- function(
     
     if (is.null(output$judgment_results) || nrow(output$judgment_results) != n) {
         stop("Final stance judgement returned unexpected results")
+    }
+    
+    # Additional postprocessing of quantitative stance labels
+    if (scale == 'numeric') {
+        output$judgment_results$stance <- truncate(
+            output$judgment_results$stance,
+            -1,
+            1
+        )
     }
     
     ## Postprocessing ----

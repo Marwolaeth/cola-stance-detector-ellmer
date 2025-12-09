@@ -54,12 +54,19 @@ res_ru <- llm_stance(
     text = test_data_ru$text[indices],
     target = 'Роскомнадзор',
     type = 'object',
+    # scale = 'numeric',
     chat_base = list(chat_analysis, chat_decision),
     # lang = 'ru',
     domain_role = 'политический обозреватель'
 )
 
 # Providers ----
+## Google ----
+chat_decision <- chat_google_gemini(
+    model = 'gemini-2.5-flash',
+    api_headers = c(task_type = 'CLASSIFICATION')
+)
+
 ## MWS ----
 oc_credentials <- function() {
     list(Authorization = paste(

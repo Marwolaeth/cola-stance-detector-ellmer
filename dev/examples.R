@@ -59,6 +59,7 @@ res_en <- llm_stance(
     text = test_data_en$tweet,
     target = test_data_en$target,
     type = test_data_en$target_type,
+    scale = 'numeric',
     chat_base = chat_base,
     # lang = 'en',
     domain_role = 'political commentator',
