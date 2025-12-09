@@ -825,13 +825,12 @@ llm_stance <- function(
     
     toc <- tictoc::toc(quiet = TRUE)
     
-    TICK <- '✅ '
     if (verbose) {
         cat("📊 Summary Table:\n")
         print(summary_df)
         cat("\n")
         cat(strrep("=", 70), "\n")
-        cat(TICK, "Analysis complete! – ", toc$callback_msg, "\n")
+        cli::cli_alert_success("Analysis complete {.time {toc$callback_msg}}")
         cat(strrep("=", 70), "\n\n")
     }
     
