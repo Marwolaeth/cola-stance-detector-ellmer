@@ -49,7 +49,7 @@ chat_decision <- chat_openrouter(
 )
 
 # see examples.R
-indices <- c(1, 3:4, 6:10)
+indices <- c(1, 3:11)
 res_ru <- llm_stance(
     text = test_data_ru$text[indices],
     target = 'Роскомнадзор',
