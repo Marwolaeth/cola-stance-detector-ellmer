@@ -91,6 +91,7 @@ type_to_term <- function(
 
 get_prompts <- function(
         role,
+        templates,
         lang = rcola_available_languages(),
         add_reference_resolution = FALSE,
         add_statement_resolution = FALSE,
@@ -103,45 +104,21 @@ get_prompts <- function(
     )
     lang <- match.arg(lang)
     
-    prompt_dir <- file.path('prompts', lang)
-    if (!dir.exists(prompt_dir)) {
-        # If a language is present in `translations.yaml`, but prompts are missing
-        warning(
-            glue::glue('Prompts not found for `{lang}`. Defaulting to `en`.')
-        )
-        lang <- 'en'
-        prompt_dir <- file.path('prompts', lang)
-    }
-    
     if (add_reference_resolution) {
-        # Add a reference resolution prompt if exists
-        reference_file <- file.path(prompt_dir, 'reference-resolution.md')
-        if (file.exists(reference_file)) {
-            reference_instruction <- ellmer::interpolate_file(reference_file)
-        } else {
-            # Default settings
-            reference_instruction <- l(lang, 'reference_instruction')
-        }
+        reference_instruction <- templates$reference_resolution
     } else {
         reference_instruction <- ''
     }
     
     if (add_statement_resolution) {
-        # Add a statement analysis instruction if exists
-        statement_file <- file.path(prompt_dir, 'statement-resolution.md')
-        if (file.exists(statement_file)) {
-            statement_instruction <- ellmer::interpolate_file(statement_file)
-        } else {
-            # Default settings
-            statement_instruction <- ''
-        }
+        statement_instruction <- templates$statement_resolution
     } else {
         # Default settings
         statement_instruction <- ''
     }
     
-    template_system <- file.path(prompt_dir, glue::glue('system-{role}.md'))
-    template_user  <- file.path(prompt_dir, glue::glue('user-{role}.md'))
+    template_system <- templates[[glue::glue('system-{role}')]]
+    template_user <- templates[[glue::glue('user-{role}')]]
     
     # Check for file existence
     if (!file.exists(template_system)) {
@@ -165,14 +142,6 @@ get_prompts <- function(
         system = ellmer::interpolate_file(template_system, ...),
         task = ellmer::interpolate_file(template_user, ...)
     )
-    
-    # Check that system prompt is unique
-    # if (length(prompts$system) != 1 || !is.character(prompts$system)) {
-    #     stop(
-    #         'System prompt interpolation returned unexpected results. ',
-    #         'Consider checking variable placeholders in system templates.'
-    #     )
-    # }
     
     # Check for empty strings
     if (any(nchar(prompts$system) == 0)) {
@@ -286,6 +255,7 @@ prepare_expert_chats <- function(
         inputs,
         get_prompts(
             expert_role,
+            templates = prompt_templates,
             lang = lang,
             text = texts,
             target = targets,
@@ -411,6 +381,7 @@ prepare_debater_chats <- function(
         get_prompts(
             'debater',
             lang = lang,
+            templates = prompt_templates,
             text = texts,
             target_type = target_types,
             target = targets,
@@ -493,6 +464,7 @@ prepare_judger_chats <- function(
         get_prompts(
             'judger',
             lang = lang,
+            templates = prompt_templates,
             text = texts,
             target_type = target_types,
             target = targets,
@@ -604,6 +576,7 @@ llm_stance <- function(
         lang = rcola_available_languages(),
         scale = c('categorical', 'numeric', 'likert'),
         domain_role = NULL,
+        prompts_dir = NULL,
         verbose = TRUE,
         rpm = 20,
         ...
@@ -729,6 +702,60 @@ llm_stance <- function(
         )
     }
     
+    ## Prompts ----
+    DEFAULT_PROMPTS_DIR <- system.file(
+        file.path('prompts', lang),
+        package = 'rcola'
+    )
+    
+    search_dirs <- c(prompts_dir, DEFAULT_PROMPTS_DIR) |> 
+        Filter(f = \(x) !is.null(x) && dir.exists(x))
+    
+    if (length(search_dirs) == 0) {
+        stop('No prompt directories found')
+    }
+    
+    role_templates <- expand.grid(
+        call = c('system', 'user'),
+        role = c('linguist', 'domain', 'interpreter', 'debater', 'judger'),
+        stringsAsFactors = FALSE
+    ) |>
+        glue::glue_data('{call}-{role}.md') |>
+        as.character() |>
+        as.list()
+    names(role_templates) <- gsub('\\.md', '', role_templates)
+    
+    prompt_files <- list(
+        scale_description = glue::glue('description-{scale}.md'),
+        reference_resolution = 'reference-resolution.md',
+        statement_resolution = 'statement-resolution.md'
+    ) |>
+        c(role_templates)
+    
+    prompt_templates <- list()
+    
+    for (name in names(prompt_files)) {
+        filename <- prompt_files[[name]]
+        
+        # Ищем файл в порядке приоритета
+        found <- FALSE
+        for (dir in search_dirs) {
+            filepath <- file.path(dir, filename)
+            if (file.exists(filepath)) {
+                prompt_templates[[name]] <- filepath
+                found <- TRUE
+                break
+            }
+        }
+        
+        # Если не найден — ошибка
+        if (!found) {
+            cli::cli_abort(
+                "Prompt {.file {filename}} not found for language {.val {lang}}.",
+            )
+        }
+    }
+    
     ## Preparation ----
     target <- recycle_arg(target, n, "target")
     type <- recycle_arg(type, n, "type")
@@ -742,7 +769,8 @@ llm_stance <- function(
         target_types = target_types,
         lang = lang,
         scale = scale,
-        domain_roles = domain_role
+        domain_roles = domain_role,
+        prompt_templates = prompt_templates
     )
     
     if (verbose) {

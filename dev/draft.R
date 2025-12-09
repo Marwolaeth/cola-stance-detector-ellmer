@@ -39,23 +39,25 @@ openrouter_key <- function() {
 chat_analysis <- chat_openrouter(
     model = 'amazon/nova-2-lite-v1:free',
     credentials = openrouter_key,
-    api_args = list(temperature = 0, max_tokens = 1000)
+    api_args = list(temperature = 0, max_tokens = 500)
 )
 
 chat_decision <- chat_openrouter(
     model = 'tngtech/tng-r1t-chimera:free',
     credentials = openrouter_key,
-    api_args = list(temperature = 0, max_tokens = 1000)
+    api_args = list(temperature = 0, max_tokens = 600)
 )
 
 # see examples.R
-indices <- c(1, 3:11)
+indices <- 1:2
+# indices <- c(1, 3:11)
 res_ru <- llm_stance(
     text = test_data_ru$text[indices],
     target = 'Роскомнадзор',
     type = 'object',
     # scale = 'numeric',
     chat_base = list(chat_analysis, chat_decision),
+    prompts_dir = 'prompts/ru',
     # lang = 'ru',
     domain_role = 'политический обозреватель'
 )
