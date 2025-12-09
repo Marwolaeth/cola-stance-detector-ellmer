@@ -574,7 +574,7 @@ llm_stance <- function(
         target,
         chat_base,
         type = c('object', 'statement'),
-        lang = NULL,
+        lang = rcola_available_languages(),
         domain_role = NULL,
         verbose = TRUE,
         rpm = 20,
@@ -605,7 +605,7 @@ llm_stance <- function(
         stop("`type` must be a character vector")
     }
     
-    if (is.null(lang)) {
+    if (is.null(lang) | length(lang) > 1) {
         lang <- cld2::detect_language(text[[1]], lang_code = TRUE)
         warning('The analysis language was automatically detected.')
     }
