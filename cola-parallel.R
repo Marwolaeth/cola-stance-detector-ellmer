@@ -1,8 +1,9 @@
 # TBD ----
 # 1. Up to three base chats as argument — Done!
-# 2. Different scales: + numeric, likert
+# 2. Different scales: + numeric, likert - Done!
 # 3. Nice Unicode handling in verbose() — Done!
 # 4. cli_abort() instead of stop()
+# 5. llm_stance.data.frame() method using rlang (imported by ellmer)
 
 # Utils ----
 truncate <- function(x, a, b) {
@@ -830,14 +831,26 @@ llm_stance <- function(
         stop("Final stance judgement returned unexpected results")
     }
     
-    # Additional postprocessing of quantitative stance labels
-    # if (scale == 'numeric') {
-    #     output$judgment_results$stance <- truncate(
-    #         output$judgment_results$stance / 100,
-    #         -1,
-    #         1
-    #     )
-    # }
+    # Additional postprocessing of quantitative and Likert stance labels
+    if (scale == 'numeric') {
+        output$judgment_results$stance <- truncate(
+            (output$judgment_results$stance - 50) / 50,
+            -1,
+            1
+        )
+    } else if (scale == 'likert') {
+        output$judgment_results$stance <- factor(
+            output$judgment_results$stance,
+            levels = c(
+                'Strongly Disagree',
+                'Disagree',
+                'Neutral',
+                'Agree',
+                'Strongly Agree'
+            ),
+            ordered = TRUE
+        )
+    }
     
     ## Postprocessing ----
     summary_df <- data.frame(

@@ -39,7 +39,7 @@ openrouter_key <- function() {
 chat_analysis <- chat_openrouter(
     model = 'amazon/nova-2-lite-v1:free',
     credentials = openrouter_key,
-    api_args = list(temperature = 0, max_tokens = 100)
+    api_args = list(temperature = 0, max_tokens = 1000)
 )
 
 chat_decision <- chat_openrouter(
@@ -55,14 +55,15 @@ res_ru <- llm_stance(
     # text = test_data_ru$text[indices],
     text = c(
         "Роскомнадзор — позор России",
-        "Роскомнадзор молодцы, кроме шуток",
-        "Роскомнадзор подготовил законопроект"
+        "Роскомнадзор заблокировал Roblox. Наконец эту помойку прикрыли, спасибо РКН",
+        "Роскомнадзор подготовил законопроект",
+        "Я не фанат РКН, но тут они молодцы."
     ),
     target = 'Роскомнадзор',
     type = 'object',
     scale = 'likert',
-    chat_base = chat_decision,
-    # chat_base = list(chat_analysis, chat_decision),
+    # chat_base = chat_decision,
+    chat_base = list(chat_analysis, chat_decision),
     # prompts_dir = 'prompts/custom',
     # verbose = FALSE,
     lang = 'ru',
