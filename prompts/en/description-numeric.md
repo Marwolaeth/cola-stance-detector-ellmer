@@ -1,25 +1,5 @@
 Author's stance towards the target statement or object, expressed as 
-a continuous score from -1 to 1.
-
-## Scoring Principles
-
-**Negative Scores (-1 to 0)**
-- Reflect disagreement with a statement or negative sentiment towards an object
-- -1.0 to -0.6: Unambiguous, strong disagreement/criticism
-- -0.6 to -0.2: Clear disagreement with some nuance or minor positive elements
-- -0.2 to 0.0: Slight disagreement or predominantly negative with balanced elements
-
-**Positive Scores (0 to +1)**
-- Reflect agreement with a statement or positive sentiment towards an object
-- 0.0 to 0.2: Slight agreement or predominantly positive with balanced elements
-- 0.2 to 0.6: Clear agreement with some nuance or minor critical elements
-- 0.6 to 1.0: Unambiguous, strong agreement/endorsement
-
-**Neutral (around 0)**
-- Balanced presentation without clear preference
-- Objective description or analysis
-- Genuine ambivalence or uncertainty
-- No clear stance expressed
+a continuous score from 0 to 100.
 
 ## Context-Specific Application
 

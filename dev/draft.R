@@ -55,16 +55,17 @@ res_ru <- llm_stance(
     # text = test_data_ru$text[indices],
     text = c(
         "Роскомнадзор — позор России",
-        "Роскомнадзор молодцы",
+        "Роскомнадзор молодцы, кроме шуток",
         "Роскомнадзор подготовил законопроект"
     ),
     target = 'Роскомнадзор',
     type = 'object',
-    scale = 'numeric',
-    chat_base = list(chat_analysis, chat_decision),
+    scale = 'likert',
+    chat_base = chat_decision,
+    # chat_base = list(chat_analysis, chat_decision),
     # prompts_dir = 'prompts/custom',
     # verbose = FALSE,
-    # lang = 'ru',
+    lang = 'ru',
     domain_role = 'политический обозреватель'
 )
 

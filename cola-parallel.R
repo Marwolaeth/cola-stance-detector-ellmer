@@ -831,20 +831,20 @@ llm_stance <- function(
     }
     
     # Additional postprocessing of quantitative stance labels
-    if (scale == 'numeric') {
-        output$judgment_results$stance <- truncate(
-            output$judgment_results$stance,
-            -1,
-            1
-        )
-    }
+    # if (scale == 'numeric') {
+    #     output$judgment_results$stance <- truncate(
+    #         output$judgment_results$stance / 100,
+    #         -1,
+    #         1
+    #     )
+    # }
     
     ## Postprocessing ----
     summary_df <- data.frame(
         text = text,
         target = target,
         target_type = type,
-        lang = lang
+        language = lang
     ) |>
         cbind(output$judgment_results)
     
