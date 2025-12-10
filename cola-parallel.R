@@ -103,17 +103,22 @@ get_prompts <- function(
     )
     lang <- match.arg(lang)
     
-    if (add_reference_resolution) {
-        reference_instruction <- templates$reference_resolution
-    } else {
-        reference_instruction <- ''
-    }
-    
-    if (add_statement_resolution) {
-        statement_instruction <- templates$statement_resolution
-    } else {
-        # Default settings
-        statement_instruction <- ''
+    # A lot of work for a judger
+    if (role == 'judger') {
+        if (add_reference_resolution) {
+            reference_instruction <- templates$reference_resolution
+        } else {
+            reference_instruction <- ''
+        }
+        
+        if (add_statement_resolution) {
+            statement_instruction <- templates$statement_resolution
+        } else {
+            # Default settings
+            statement_instruction <- ''
+        }
+        
+        scale_guide <- templates$scale_guide
     }
     
     template_system <- templates[[glue::glue('system-{role}')]]
@@ -226,11 +231,27 @@ type_stance_numeric <- function(lang) {
     )
 }
 
+type_stance_likert <- function(lang) {
+    type_enum(
+        values = c(
+            'Strongly Disagree',
+            'Disagree',
+            'Neutral',
+            'Agree',
+            'Strongly Agree'
+        ),
+        description = ellmer::interpolate_file(
+            file.path('prompts', lang, 'description-likert.md')
+        )
+    )
+}
+
 type_stance_analysis <- function(lang, scale) {
     # A schema for the structured output
     type_stance <- switch(
         scale,
         numeric = type_stance_numeric(lang),
+        likert = type_stance_likert(lang),
         type_stance_categorical(lang)
     )
     
@@ -433,7 +454,11 @@ stage_2_parallel_debates <- function(
         stance_labels,
         function(stance_label) {
             prepare_debater_chats(
-                stance = l(inputs$lang, glue::glue('stance_{stance_label}')),
+                stance = l(
+                    inputs$lang,
+                    glue::glue('stance_{stance_label}'),
+                    inputs$scale
+                ),
                 inputs = inputs,
                 chat_base = chat_base
             )
@@ -732,6 +757,7 @@ llm_stance <- function(
     
     prompt_files <- list(
         scale_description = glue::glue('description-{scale}.md'),
+        scale_guide = glue::glue('guide-{scale}.md'),
         reference_resolution = 'reference-resolution.md',
         statement_resolution = 'statement-resolution.md'
     ) |>

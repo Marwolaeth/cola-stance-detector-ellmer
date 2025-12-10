@@ -25,7 +25,11 @@ l <- function(lang, caption_id, case = NULL) {
     translation <- dict[[lang]][[caption_id]]
     
     if (!is.null(case)) {
-        case <- match.arg(case, c('gen', 'dat'), several.ok = FALSE)
+        case <- match.arg(
+            case,
+            c('gen', 'dat', 'categorical', 'numeric', 'likert'),
+            several.ok = FALSE
+        )
         
         if (!is.list(translation)) {
             stop("Case '", case, "' not supported for '", caption_id, 

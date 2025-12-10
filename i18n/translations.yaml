@@ -12,9 +12,18 @@ en:
   stage_3: "Final decision"
   result: "FINAL STANCE"
   explanation_description: "Explain your stance classification in one concise paragraph, covering all decision criteria."
-  stance_positive: "positive"
-  stance_neutral: "neutral"
-  stance_negative: "negative"
+  stance_positive:
+      categorical: "positive"
+      numeric: "positive, near 1"
+      likert: "agreement"
+  stance_neutral:
+      categorical: "neutral"
+      numeric: "neutral, near 0"
+      likert: "neutral"
+  stance_negative:
+      categorical: "negative"
+      numeric: "negative, near -1"
+      likert: "disagreement"
   reference_instruction: "Pronouns and ellipses refer to the target unless context clearly indicates otherwise."
 
 uk:
@@ -31,9 +40,18 @@ uk:
   stage_3: "Винесення остаточного рішення"
   result: "ОСТАТОЧНА ПОЗИЦІЯ"
   explanation_description: "Поясніть вашу класифікацію позиції автора в одному стислому абзаці, охопивши всі критерії рішення."
-  stance_positive: "позитивна"
-  stance_neutral: "нейтральна"
-  stance_negative: "негативна"
+  stance_positive:
+      categorical: "позитивна"
+      numeric: "позитивна, близько 1"
+      likert: "підтримка"
+  stance_neutral:
+      categorical: "нейтральна"
+      numeric: "нейтральна, близько 0"
+      likert: "нейтральна"
+  stance_negative:
+      categorical: "негативна"
+      numeric: "негативна, близько -1"
+      likert: "неприйняття"
   reference_instruction: "Займенники та еліпси посилаються на об'єкт, якщо контекст не вказує на інше."
 
 ru:
@@ -50,8 +68,17 @@ ru:
   stage_3: "Вынесение окончательного решения"
   result: "ОКОНЧАТЕЛЬНАЯ ПОЗИЦИЯ"
   explanation_description: "Поясните вашу классификацию позиции в одном кратком абзаце, охватив все критерии решения."
-  stance_positive: "позитивная"
-  stance_neutral: "нейтральная"
-  stance_negative: "негативная"
+  stance_positive:
+      categorical: "позитивная"
+      numeric: "позитивная, около 1"
+      likert: "поддержка"
+  stance_neutral:
+      categorical: "нейтральная"
+      numeric: "нейтральная, около 0"
+      likert: "нейтральная"
+  stance_negative:
+      categorical: "негативная"
+      numeric: "негативная, около -1"
+      likert: "отторжение"
   reference_instruction: "Местоимения и эллипсис относятся к объекту анализа, если контекст не указывает иное."
   
