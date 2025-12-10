@@ -5,3 +5,9 @@ required_packages <- c(
 )
 
 devtools::install_github(required_packages, build = TRUE)
+
+install.packages(
+    'Unicode',
+    type = 'source',
+    INSTALL_opts = '--byte-compile --no-multiarch'
+)

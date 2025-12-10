@@ -1,7 +1,8 @@
 # TBD ----
-# 1. Up to three base chats as argument
+# 1. Up to three base chats as argument — Done!
 # 2. Different scales: + numeric, likert
-# 3. Nice Unicode handling in verbose()
+# 3. Nice Unicode handling in verbose() — Done!
+# 4. cli_abort() instead of stop()
 
 # Utils ----
 truncate <- function(x, a, b) {
@@ -55,14 +56,12 @@ recycle_arg <- function(arg, n, arg_name) {
 }
 
 stage_toc <- function(tic, toc, msg) {
-    TICK <- '✅ '
-    
     tocmsg <- paste0(round(toc - tic, 3), " seconds elapsed")
     
     if (is.null(msg) || is.na(msg) || length(msg) == 0) {
         outmsg <- tocmsg
     } else {
-        outmsg <- glue::glue('{TICK}{msg} complete – {tocmsg}\n\n')
+        outmsg <- glue::glue('\u2705 {msg} complete – {tocmsg}\n\n')
     }
     outmsg
 }
@@ -286,7 +285,7 @@ execute_role <- function(
         expert_role = expert_role
     )
     
-    if (verbose) cat('    📊', glue::glue('{info}...'), '\n')
+    if (verbose) cat('    \U1F4CA', glue::glue('{info}...'), '\n')
     
     # If multiple system_prompts, e.g
     if (length(tasks$chats) > 1) {
@@ -339,7 +338,7 @@ stage_1_parallel_analysis <- function(
     tictoc::tic('Stage 1')
     if (verbose) {
         cat(
-            glue::glue("⏳ Stage 1: Expert analysis ({n} items)..."), 
+            glue::glue("\U23F3 Stage 1: Expert analysis ({n} items)..."), 
             "\n"
         )
     }
@@ -424,7 +423,7 @@ stage_2_parallel_debates <- function(
     if (verbose) {
         cat(
             glue::glue(
-                "⏳ Stage 2: Parallel debates ({n} items × 3 stances)..."), 
+                "\U23F3 Stage 2: Parallel debates ({n} items × 3 stances)..."), 
             "\n"
         )
     }
@@ -508,7 +507,7 @@ stage_3_parallel_judgment <- function(
     
     tictoc::tic('Stage 3')
     if (verbose) {
-        cat(glue::glue("⏳ Stage 3: Parallel judgment ({n} items)..."), "\n")
+        cat(glue::glue("\U23F3 Stage 3: Parallel judgment ({n} items)..."), "\n")
     }
     
     judger_tasks <- prepare_judger_chats(
@@ -516,7 +515,7 @@ stage_3_parallel_judgment <- function(
         chat_base = chat_base
     )
     
-    if (verbose) cat("   ⚖️ Running parallel judgments...\n")
+    if (verbose) cat("    \u2696\UFE0F Running parallel judgments...\n")
     
     # Parallel decisions
     inputs[['judgment_results']] <- ellmer::parallel_chat_structured(
@@ -587,7 +586,7 @@ llm_stance <- function(
         ...
 ) {
     ## Validation ----
-    tictoc::tic(msg = '')
+    tictoc::tic('Analysis')
     
     if (!is.character(text)) {
         stop("`text` must be a character vector")
@@ -782,7 +781,7 @@ llm_stance <- function(
     if (verbose) {
         cat("\n")
         cat(strrep("=", 70), "\n")
-        cat(glue::glue("🔍 STANCE ANALYSIS - Processing {n} item(s)"), "\n")
+        cat(glue::glue("\U1F50D STANCE ANALYSIS - Processing {n} item(s)"), "\n")
         cat(strrep("=", 70), "\n\n")
         cat(glue::glue("Types: {paste(unique(type), collapse = ', ')}"), "\n")
         cat(glue::glue("Language: {lang}"), "\n")
@@ -823,15 +822,16 @@ llm_stance <- function(
     ) |>
         cbind(output$judgment_results)
     
-    toc <- tictoc::toc(quiet = TRUE)
-    
     if (verbose) {
-        cat("📊 Summary Table:\n")
+        cat("\U1F4CA Summary Table:\n")
         print(summary_df)
         cat("\n")
         cat(strrep("=", 70), "\n")
-        cli::cli_alert_success("Analysis complete {.time {toc$callback_msg}}")
+        # cli::cli_alert_success("Analysis complete! – {.time {toc$callback_msg}}")
+        toc <- tictoc::toc(func.toc = stage_toc, quiet = FALSE)
         cat(strrep("=", 70), "\n\n")
+    } else {
+        toc <- tictoc::toc(func.toc = stage_toc, quiet = TRUE)
     }
     
     ## Return ----

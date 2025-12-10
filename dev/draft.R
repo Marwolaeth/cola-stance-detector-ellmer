@@ -58,6 +58,7 @@ res_ru <- llm_stance(
     # scale = 'numeric',
     chat_base = list(chat_analysis, chat_decision),
     prompts_dir = 'prompts/custom',
+    # verbose = FALSE,
     # lang = 'ru',
     domain_role = 'политический обозреватель'
 )
@@ -107,3 +108,8 @@ chat_base <- chat_openai_compatible(
     model = 'gpt://b1gsm63ta97sfo8jpbgu/aliceai-llm/latest',
     api_headers = c('OpenAI-Project' = YANDEX_CLOUD_FOLDER)
 )
+
+# Unicode ----
+cat("\u00B5\n")
+cat('\U1F4CA')
+cat('\U1F50D')
