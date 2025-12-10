@@ -868,8 +868,13 @@ print.stance_result <- function(x, ...) {
     cat(glue::glue("Failed: {x$metadata$n_failed} items"), "\n")
     cat(glue::glue("Language: {x$metadata$language}"), "\n")
     cat(glue::glue("Types: {paste(x$metadata$types, collapse = ', ')}"), "\n")
-    cat(glue::glue("Domain role: {x$metadata$domain_role}"), "\n")
-    cat(glue::glue("Time elapsed: {x$metadata$elapsed} sec"), "\n")
+    cat(
+        glue::glue(
+            "Domain role(s): {paste(x$metadata$domain_role, collapse = ', ')}"
+        ),
+        "\n"
+    )
+    cat(glue::glue("Time elapsed: {round(x$metadata$elapsed, 2)} sec"), "\n")
     cat(glue::glue("Timestamp: {x$metadata$timestamp}"), "\n")
     cat(strrep("=", 60), "\n\n")
     
