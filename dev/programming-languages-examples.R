@@ -1,3 +1,4 @@
+# THE DATA ----
 programming_tweets <- tibble::tibble(
     tweet = c(
         # Julia - positive technical
@@ -60,3 +61,59 @@ programming_tweets <- tibble::tibble(
 )
 
 programming_tweets
+
+# CHATS ----
+library(ellmer)
+openrouter_key <- function() {
+    list(Authorization = paste(
+        'Bearer', Sys.getenv('OPENROUTER_API_KEY')
+    ))
+}
+
+chat_analysis <- chat_openrouter(
+    model = 'amazon/nova-2-lite-v1:free',
+    credentials = openrouter_key,
+    api_args = list(temperature = 0, max_tokens = 1000)
+)
+
+chat_decision <- chat_openrouter(
+    model = 'tngtech/tng-r1t-chimera:free',
+    credentials = openrouter_key,
+    api_args = list(temperature = 0)
+)
+
+# TESTS ----
+## Julia (manual) ----
+julia_tweets <- programming_tweets |>
+    dplyr::slice(1:7) |>
+    dplyr::mutate(language = 'Julia') |>
+    llm_stance(
+        tweet,
+        language,
+        type = 'object',
+        language = 'en',
+        domain_role = 'computer scientist',
+        chat_base = list(chat_analysis, chat_decision),
+        .output_col = 'stance_threeway'
+    ) |>
+    llm_stance(
+        tweet,
+        language,
+        type = 'object',
+        language = 'en',
+        domain_role = 'computer scientist',
+        scale = 'likert',
+        chat_base = list(chat_analysis, chat_decision),
+        .output_col = 'stance_likert'
+    ) |>
+    llm_stance(
+        tweet,
+        language,
+        type = 'object',
+        language = 'en',
+        domain_role = 'computer scientist',
+        scale = 'numeric',
+        chat_base = list(chat_analysis, chat_decision),
+        .output_col = 'stance_numeric'
+    )
+
