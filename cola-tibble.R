@@ -8,8 +8,8 @@ llm_stance.data.frame <- function(
         text,
         target,
         type = NULL,
-        lang = NULL,
         domain_role = NULL,
+        language = NULL,
         chat_base,
         scale = 'categorical',
         prompts_dir = NULL,
@@ -22,7 +22,7 @@ llm_stance.data.frame <- function(
     text_quo <- rlang::enquo(text)
     target_quo <- rlang::enquo(target)
     type_quo <- rlang::enquo(type)
-    lang_quo <- rlang::enquo(lang)
+    language_quo <- rlang::enquo(language)
     domain_role_quo <- rlang::enquo(domain_role)
     
     # Проверяем, что data это data.frame
@@ -34,7 +34,7 @@ llm_stance.data.frame <- function(
     text_vec <- rlang::eval_tidy(text_quo, data)
     target_vec <- rlang::eval_tidy(target_quo, data)
     type_vec <- rlang::eval_tidy(type_quo, data)
-    lang_vec <- rlang::eval_tidy(lang_quo, data)
+    language_vec <- rlang::eval_tidy(language_quo, data)
     domain_role_vec <- rlang::eval_tidy(domain_role_quo, data)
     
     # Валидация извлеченных значений
@@ -61,8 +61,8 @@ llm_stance.data.frame <- function(
         type_vec <- c('object', 'statement')
     }
     
-    if (rlang::is_null(lang_vec)) {
-        lang_vec <- rcola_available_languages()
+    if (rlang::is_null(language_vec)) {
+        language_vec <- rcola_available_languages()
     }
     
     if (rlang::is_null(domain_role_vec)) {
@@ -86,7 +86,7 @@ llm_stance.data.frame <- function(
         text = text_vec,
         target = target_vec,
         type = type_vec,
-        lang = lang_vec,
+        language = language_vec,
         domain_role = domain_role_vec,
         chat_base = chat_base,
         scale = scale,

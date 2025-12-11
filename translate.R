@@ -8,21 +8,21 @@ rcola_available_languages <- function() {
     names(load_translations())
 }
 
-l <- function(lang, caption_id, case = NULL) {
+l <- function(language, caption_id, case = NULL) {
     # Проверка языка
-    if (!lang %in% rcola_available_languages()) {
-        stop("Language '", lang, "' not available. Use: ", 
+    if (!language %in% rcola_available_languages()) {
+        stop("Language '", language, "' not available. Use: ", 
              paste(rcola_available_languages(), collapse = ", "))
     }
     
     dict <- load_translations()
     
     # Проверка ключа
-    if (!caption_id %in% names(dict[[lang]])) {
-        stop("Caption ID '", caption_id, "' not found in language '", lang, "'")
+    if (!caption_id %in% names(dict[[language]])) {
+        stop("Caption ID '", caption_id, "' not found in language '", language, "'")
     }
     
-    translation <- dict[[lang]][[caption_id]]
+    translation <- dict[[language]][[caption_id]]
     
     if (!is.null(case)) {
         case <- match.arg(
@@ -56,12 +56,12 @@ rcola_check_translations <- function() {
     
     cat("Available languages:", paste(names(dict), collapse = ", "), "\n\n")
     
-    for (lang in names(dict)) {
-        cat("Language:", lang, "\n")
-        cat("  Keys:", length(dict[[lang]]), "\n")
+    for (language in names(dict)) {
+        cat("Language:", language, "\n")
+        cat("  Keys:", length(dict[[language]]), "\n")
         
         # Проверка структуры
-        cases_keys <- sapply(dict[[lang]], function(x) is.list(x))
+        cases_keys <- sapply(dict[[language]], function(x) is.list(x))
         if (any(cases_keys)) {
             cat("  Keys with cases:", sum(cases_keys), "\n")
         }

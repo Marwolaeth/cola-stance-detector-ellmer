@@ -119,22 +119,22 @@ validate_stage <- function(x, stage_name) {
 # ellmer Utils ----
 type_to_term <- function(
         type = c('object', 'statement'),
-        lang = rcola_available_languages()
+        language = rcola_available_languages()
 ) {
     type <- rlang::arg_match(type, c('object', 'statement'), multiple = FALSE)
-    lang <- rlang::arg_match(lang, rcola_available_languages(), multiple = FALSE)
+    language <- rlang::arg_match(language, rcola_available_languages(), multiple = FALSE)
     
     switch(
         type,
-        object = l(lang, 'object', 'dat'),
-        statement = l(lang, 'statement', 'dat')
+        object = l(language, 'object', 'dat'),
+        statement = l(language, 'statement', 'dat')
     )
 }
 
 prompts_prepare <- function(
         role,
         templates,
-        lang = rcola_available_languages(),
+        language = rcola_available_languages(),
         add_reference_resolution = FALSE,
         add_statement_resolution = FALSE,
         ...
@@ -144,7 +144,7 @@ prompts_prepare <- function(
         values = c('linguist', 'domain', 'interpreter', 'debater', 'judger'),
         multiple = FALSE
     )
-    lang <- rlang::arg_match(lang, rcola_available_languages(), multiple = FALSE)
+    language <- rlang::arg_match(language, rcola_available_languages(), multiple = FALSE)
     
     # A lot of work for a judger
     if (role == 'judger') {
@@ -271,24 +271,24 @@ tasks_prepare <- function(chat_base, prompts, n_texts) {
 }
 
 # Schemas ----
-type_stance_categorical <- function(lang) {
+type_stance_categorical <- function(language) {
     type_enum(
         values = c('Positive', 'Negative', 'Neutral'),
         description = ellmer::interpolate_file(
-            file.path('prompts', lang, 'description-categorical.md')
+            file.path('prompts', language, 'description-categorical.md')
         )
     )
 }
 
-type_stance_numeric <- function(lang) {
+type_stance_numeric <- function(language) {
     type_number(
         description = ellmer::interpolate_file(
-            file.path('prompts', lang, 'description-numeric.md')
+            file.path('prompts', language, 'description-numeric.md')
         )
     )
 }
 
-type_stance_likert <- function(lang) {
+type_stance_likert <- function(language) {
     type_enum(
         values = c(
             'Strongly Disagree',
@@ -298,24 +298,24 @@ type_stance_likert <- function(lang) {
             'Strongly Agree'
         ),
         description = ellmer::interpolate_file(
-            file.path('prompts', lang, 'description-likert.md')
+            file.path('prompts', language, 'description-likert.md')
         )
     )
 }
 
-type_stance_analysis <- function(lang, scale) {
+type_stance_analysis <- function(language, scale) {
     # A schema for the structured output
     type_stance <- switch(
         scale,
-        numeric = type_stance_numeric(lang),
-        likert = type_stance_likert(lang),
-        type_stance_categorical(lang)
+        numeric = type_stance_numeric(language),
+        likert = type_stance_likert(language),
+        type_stance_categorical(language)
     )
     
     type_object(
         stance = type_stance,
         explanation = type_string(
-            description = l(lang, 'explanation_description')
+            description = l(language, 'explanation_description')
         )
     )
 }
@@ -338,7 +338,7 @@ prepare_expert_chats <- function(
         prompts_prepare(
             expert_role,
             templates = prompt_templates,
-            lang = lang,
+            language = language,
             text = texts,
             target = targets,
             target_type = target_types,
@@ -463,7 +463,7 @@ prepare_debater_chats <- function(
         inputs,
         prompts_prepare(
             'debater',
-            lang = lang,
+            language = language,
             templates = prompt_templates,
             text = texts,
             target_type = target_types,
@@ -515,7 +515,7 @@ stage_2_parallel_debates <- function(
         function(stance_label) {
             prepare_debater_chats(
                 stance = l(
-                    inputs$lang,
+                    inputs$language,
                     glue::glue('stance_{stance_label}'),
                     inputs$scale
                 ),
@@ -552,7 +552,7 @@ prepare_judger_chats <- function(
         inputs,
         prompts_prepare(
             'judger',
-            lang = lang,
+            language = language,
             templates = prompt_templates,
             text = texts,
             target_type = target_types,
@@ -608,7 +608,7 @@ stage_3_parallel_judgment <- function(
     inputs[['judgment_results']] <- ellmer::parallel_chat_structured(
         chat = judger_tasks$chats[[1]],
         prompts = judger_tasks$tasks,
-        type = type_stance_analysis(inputs$lang, inputs$scale),
+        type = type_stance_analysis(inputs$language, inputs$scale),
         rpm = rpm,
         convert = TRUE,
         ...
@@ -634,7 +634,7 @@ stage_3_parallel_judgment <- function(
 #' @param target Character vector of targets (recycled if length 1)
 #' @param chat_base an [ellmer::Chat] object from
 #' @param type either "object" or "statement" (recycled if length 1)
-#' @param lang Language code ("en", "ru", "uk")
+#' @param language Language code ("en", "ru", "uk")
 #' @param domain_role Domain expert role (default: "sociologist", recycled if length 1)
 #' @param verbose Show progress messages
 #' @param rpm Rate limit (requests per minute)
@@ -655,7 +655,7 @@ stage_3_parallel_judgment <- function(
 #'     target = "Climate Change is real",
 #'     chat_base = chat,
 #'     type = "statement",
-#'     lang = "en"
+#'     language = "en"
 #' )
 #' print(result)
 #' summary(result)
@@ -667,7 +667,7 @@ llm_stance.character <- function(
         target,
         chat_base,
         type = c('object', 'statement'),
-        lang = rcola_available_languages(),
+        language = rcola_available_languages(),
         scale = c('categorical', 'numeric', 'likert'),
         domain_role = NULL,
         prompts_dir = NULL,
@@ -691,23 +691,23 @@ llm_stance.character <- function(
         cli::cli_abort("{.arg type} must be a character vector, got {.cls {class(type)}}")
     }
     
-    # Validate lang
-    if (is.null(lang) || length(lang) > 1) {
-        lang <- cld2::detect_language(text[[1]], lang_code = TRUE)
-        cli::cli_warn("The analysis language was automatically detected: {.val {lang}}")
+    # Validate language
+    if (is.null(language) || length(language) > 1) {
+        language <- cld2::detect_language(text[[1]], lang_code = TRUE)
+        cli::cli_warn("The analysis language was automatically detected: {.val {language}}")
     }
-    if (rlang::is_scalar_character(lang)) {
-        if (!lang %in% rcola_available_languages()) {
+    if (rlang::is_scalar_character(language)) {
+        if (!language %in% rcola_available_languages()) {
             cli::cli_abort(
                 c(
-                    "Language {.val {lang}} not available",
+                    "Language {.val {language}} not available",
                     "i" = "Use one of: {.val {rcola_available_languages()}}"
                 )
             )
         }
     } else {
         cli::cli_abort(
-            "{.arg lang} must be a character scalar, got {.cls {class(lang)}}"
+            "{.arg language} must be a character scalar, got {.cls {class(language)}}"
         )
     }
     
@@ -717,7 +717,7 @@ llm_stance.character <- function(
     # Validate domain_role
     if (is.null(domain_role)) {
         domain_role <- switch(
-            lang,
+            language,
             uk = 'соціолог',
             ru = 'социолог',
             'social commentator'
@@ -798,16 +798,16 @@ llm_stance.character <- function(
     
     ## Prompts ----
     # DEFAULT_PROMPTS_DIR <- system.file(
-    #     file.path('prompts', lang),
+    #     file.path('prompts', language),
     #     package = 'rcola'
     # )
-    DEFAULT_PROMPTS_DIR <- file.path('prompts', lang)
+    DEFAULT_PROMPTS_DIR <- file.path('prompts', language)
     
     search_dirs <- c(prompts_dir, DEFAULT_PROMPTS_DIR) |> 
         Filter(f = \(x) !is.null(x) && dir.exists(x))
     
     if (length(search_dirs) == 0) {
-        cli::cli_abort("No prompt directories found for language {.val {lang}}")
+        cli::cli_abort("No prompt directories found for language {.val {language}}")
     }
     
     role_templates <- expand.grid(
@@ -847,7 +847,7 @@ llm_stance.character <- function(
         # Если не найден — ошибка
         if (!found) {
             cli::cli_abort(
-                "Prompt {.file {filename}} not found for language {.val {lang}}"
+                "Prompt {.file {filename}} not found for language {.val {language}}"
             )
         }
     }
@@ -856,14 +856,14 @@ llm_stance.character <- function(
     target <- recycle_arg(target, n)
     type <- recycle_arg(type, n)
     
-    target_types <- sapply(type, type_to_term, lang = lang)
+    target_types <- sapply(type, type_to_term, language = language)
     
     inputs <- list(
         texts = text,
         targets = target,
         types = type,
         target_types = target_types,
-        lang = lang,
+        language = language,
         scale = scale,
         domain_roles = domain_role,
         prompt_templates = prompt_templates
@@ -875,7 +875,7 @@ llm_stance.character <- function(
         cat(glue::glue("\U1F50D STANCE ANALYSIS - Processing {n} item(s)"), "\n")
         cat(strrep("=", 70), "\n\n")
         cat(glue::glue("Types: {paste(unique(type), collapse = ', ')}"), "\n")
-        cat(glue::glue("Language: {lang}"), "\n")
+        cat(glue::glue("Language: {language}"), "\n")
         cat(
             glue::glue("Domain roles: {paste(unique(domain_role), collapse = ', ')}"),
             "\n"
@@ -921,7 +921,7 @@ llm_stance.character <- function(
         text = text,
         target = target,
         target_type = type,
-        language = lang
+        language = language
     ) |>
         cbind(output$judgment_results)
     
@@ -947,7 +947,7 @@ llm_stance.character <- function(
                 n_total = n,
                 n_processed = nrow(output$judgment_results),
                 n_failed = sum(is.na(output$judgment_results$stance)),
-                language = lang,
+                language = language,
                 types = unique(type),
                 domain_role = domain_role,
                 elapsed = toc$toc - toc$tic,

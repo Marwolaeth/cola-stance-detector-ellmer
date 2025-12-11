@@ -8,7 +8,7 @@ llm_stance(
     domain_role = c('социолог', 'политолог', 'спелеолог'),
     target = c('Роскомнадзор', 'Роскомнадзор защищает пользователей', 'Роскомнадзор'),
     type = c('object', 'statement', 'object'),
-    lang = 'ru',
+    language = 'ru',
     chat_base = chat_base
 )
 
@@ -24,7 +24,7 @@ res <- llm_stance(
     target = 'Использовать VPN опасно',
     chat_base = chat_base,
     type = 'statement',
-    lang = 'ru',
+    language = 'ru',
     domain_role = 'политический обозреватель',
     verbose = TRUE
 )
@@ -65,7 +65,7 @@ res_ru <- llm_stance(
     chat_base = list(chat_analysis, chat_decision),
     # prompts_dir = 'prompts/custom',
     # verbose = FALSE,
-    lang = 'ru',
+    language = 'ru',
     domain_role = 'политический обозреватель'
 )
 
@@ -122,10 +122,14 @@ cat('\U1F50D')
 
 # Tibbles ----
 res_en <- test_data_en |>
+    dplyr::mutate(
+        role = c('political scientist', 'political scientist', 'policeman')
+    ) |>
     llm_stance(
         tweet,
         target,
-        type = target_type,
-        chat_base = list(chat_analysis, chat_decision)
+        target_type,
+        role,
+        chat_base = list(chat_analysis, chat_decision),
     )
 str(res_en)

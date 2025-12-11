@@ -61,7 +61,7 @@ res_en <- llm_stance(
     type = test_data_en$target_type,
     scale = 'numeric',
     chat_base = chat_base,
-    # lang = 'en',
+    # language = 'en',
     domain_role = 'political commentator',
     verbose = TRUE
 )
@@ -114,7 +114,7 @@ res_uk <- llm_stance(
     target = test_data_uk$target,
     type = test_data_uk$target_type,
     chat_base = chat_base,
-    # lang = 'uk',
+    # language = 'uk',
     domain_role = 'оглядач'
 )
 
@@ -203,7 +203,7 @@ res_ru <- llm_stance(
     target = test_data_ru$target,
     type = test_data_ru$target_type,
     chat_base = chat_base,
-    # lang = 'ru',
+    # language = 'ru',
     domain_role = 'политический обозреватель'
 )
 
@@ -388,7 +388,7 @@ llm_stance(
     target = 'Роскомнадзор',
     chat_base = chat_base,
     type = 'object',
-    lang = 'ru',
+    language = 'ru',
     domain_role = c('политический обозреватель'),
     verbose = TRUE,
     rpm = 10
