@@ -897,11 +897,11 @@ llm_stance.character <- function(
     
     # Additional postprocessing of quantitative and Likert stance labels
     if (scale == 'numeric') {
-        output$judgment_results$stance <- truncate(
-            (output$judgment_results$stance - 50) / 50,
-            -1,
-            1
-        )
+        # output$judgment_results$stance <- truncate(
+        #     (output$judgment_results$stance - 50) / 50,
+        #     -1,
+        #     1
+        # )
     } else if (scale == 'likert') {
         output$judgment_results$stance <- factor(
             output$judgment_results$stance,
@@ -1003,5 +1003,3 @@ summary.stance_result <- function(object, ...) {
 as.data.frame.stance_result <- function(x, row.names = NULL, optional = FALSE, ...) {
     x$summary
 }
-
-registerS3method('llm_stance', class = 'data.frame', method = llm_stance.data.frame)
