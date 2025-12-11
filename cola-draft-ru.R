@@ -49,7 +49,7 @@ type_to_term <- function(type = c('object', 'statement'), lang = c('en', 'ru')) 
     )
 }
 
-get_prompts <- function(role, lang = c('en', 'ru'), ...) {
+prompts_prepare <- function(role, lang = c('en', 'ru'), ...) {
     lang <- match.arg(lang)
     
     template_system <- file.path('prompts', lang, glue::glue('system-{role}.md'))
@@ -98,7 +98,7 @@ analyse <- function(
     chat <- chat_base$clone()
     
     # Загружаем инструкции
-    prompts <- get_prompts(role, lang, text = text, ...)
+    prompts <- prompts_prepare(role, lang, text = text, ...)
     
     # Исполняем инструкции
     execute_prompts(chat, prompts)
@@ -122,7 +122,7 @@ debate_stance <- function(
     ExpertResponse <- analysis_results$domain
     UserResponse <- analysis_results$social_media
     
-    prompts <- get_prompts(
+    prompts <- prompts_prepare(
         'debater',
         lang = lang,
         text = text,
@@ -159,7 +159,7 @@ determine_stance <- function(
     
     
     # Подготовка промптов
-    prompts <- get_prompts(
+    prompts <- prompts_prepare(
         'judger',
         lang = lang,
         text = text,

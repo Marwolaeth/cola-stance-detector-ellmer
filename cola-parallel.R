@@ -7,51 +7,64 @@
 
 # Utils ----
 truncate <- function(x, a, b) {
-    stopifnot(is.numeric(x))
-    stopifnot(is.numeric(a))
-    stopifnot(is.numeric(b))
+    if (!is.numeric(x)) {
+        cli::cli_abort("{.arg x} must be numeric")
+    }
+    if (!is.numeric(a)) {
+        cli::cli_abort("{.arg a} must be numeric")
+    }
+    if (!is.numeric(b)) {
+        cli::cli_abort("{.arg b} must be numeric")
+    }
     
     pmin(pmax(x, a), b)
 }
 
+
 catch <- function(expr, expr_name = deparse(substitute(expr))) {
-    if (!is.character(expr_name)) {
-        stop("`expr_name` must be a character string")
+    if (!rlang::is_scalar_character(expr_name)) {
+        cli::cli_abort(
+            "{.arg expr_name} must be a character scalar.
+            Got {.cls {class(expr_name)}}"
+        )
     }
     
     tryCatch(
         expr,
         error = function(e) {
-            stop(glue::glue("Error in {expr_name}: {e$message}", call. = FALSE))
+            cli::cli_abort(
+                "Error in {expr_name}: {e$message}",
+                call = rlang::expr(llm_stance())
+            )
         }
     )
 }
 
 validate_inputs <- function(inputs, expected_length, input_name = 'Inputs') {
-    if (!is.character(input_name)) {
-        stop("`input_name` must be a character string")
+    if (!rlang::is_scalar_character(input_name)) {
+        cli::cli_abort("{.arg input_name} must be a character scalar.")
     }
     
     if (is.null(inputs) || length(inputs) != expected_length) {
-        stop(
-            glue::glue("{input_name} returned unexpected results"),
-            call. = FALSE
+        cli::cli_abort(
+            "{input_name} returned unexpected results",
+            call = rlang::expr(llm_stance())
         )
     }
 }
 
-recycle_arg <- function(arg, n, arg_name) {
+recycle_arg <- function(arg, n) {
+    arg_name <- deparse(substitute(arg))
+    
     if (length(arg) == 1) {
         return(rep(arg, n))
     } else if (length(arg) == n) {
         return(arg)
     } else {
-        stop(
-            glue::glue(
-                "`{arg_name}` must have length 1 or {n} (same as `text`). "
-            ),
-            glue::glue("Got {length(arg)}."),
-            call. = FALSE
+        cli::cli_abort(
+            "{.arg {arg_name}} must have length 1 or {n} (same as {.arg text}). \\
+            Got {length(arg)}.",
+            call = rlang::expr(llm_stance())
         )
     }
 }
@@ -67,9 +80,38 @@ stage_toc <- function(tic, toc, msg) {
     outmsg
 }
 
+validate_character <- function(x) {
+    arg_name <- deparse(substitute(x))
+    
+    if (!rlang::is_character(x)) {
+        cli::cli_abort(
+            "{.arg {arg_name}} must be a character vector, got {.cls {class(x)}}",
+            call = rlang::expr(llm_stance())
+        )
+    }
+    if (length(x) == 0) {
+        cli::cli_abort(
+            "{.arg {arg_name}} cannot be empty",
+            call = rlang::expr(llm_stance())
+        )
+    }
+    if (any(is.na(x)) || any(ellmer:::trim(x) == '')) {
+        cli::cli_abort(
+            c(
+                "{.arg {arg_name}} contains empty strings.",
+                "i" = "consider removing them before analysis."
+            ),
+            call = rlang::expr(llm_stance())
+        )
+    }
+}
+
 validate_stage <- function(x, stage_name) {
     if (is.null(x)) {
-        stop(glue::glue("{stage_name} returned NULL"), call. = FALSE)
+        cli::cli_abort(
+            "{stage_name} returned NULL",
+            call = rlang::expr(llm_stance())
+        )
     }
     x
 }
@@ -79,8 +121,8 @@ type_to_term <- function(
         type = c('object', 'statement'),
         lang = rcola_available_languages()
 ) {
-    type <- match.arg(type, c('object', 'statement'), several.ok = FALSE)
-    lang <- match.arg(lang)
+    type <- rlang::arg_match(type, c('object', 'statement'), multiple = FALSE)
+    lang <- rlang::arg_match(lang, rcola_available_languages(), multiple = FALSE)
     
     switch(
         type,
@@ -89,7 +131,7 @@ type_to_term <- function(
     )
 }
 
-get_prompts <- function(
+prompts_prepare <- function(
         role,
         templates,
         lang = rcola_available_languages(),
@@ -97,12 +139,12 @@ get_prompts <- function(
         add_statement_resolution = FALSE,
         ...
 ) {
-    role <- match.arg(
+    role <- rlang::arg_match(
         role,
-        choices = c('linguist', 'domain', 'interpreter', 'debater', 'judger'),
-        several.ok = FALSE
+        values = c('linguist', 'domain', 'interpreter', 'debater', 'judger'),
+        multiple = FALSE
     )
-    lang <- match.arg(lang)
+    lang <- rlang::arg_match(lang, rcola_available_languages(), multiple = FALSE)
     
     # A lot of work for a judger
     if (role == 'judger') {
@@ -127,19 +169,21 @@ get_prompts <- function(
     
     # Check for file existence
     if (!file.exists(template_system)) {
-        stop(
-            glue::glue(
-                'System template not found: {template_system}. ',
-                'Available roles: linguist, domain, interpreter, debater, judger.'
-            )
+        cli::cli_abort(
+            c(
+                "System template not found: {.file {template_system}}",
+                "i" = "Available roles: {.val linguist}, {.val domain}, {.val interpreter}, {.val debater}, {.val judger}"
+            ),
+            call = rlang::expr(llm_stance())
         )
     }
     if (!file.exists(template_user)) {
-        stop(
-            glue::glue(
-                'User template not found: {template_user}. ',
-                'Available roles: linguist, domain, interpreter, debater, judger.'
-            )
+        cli::cli_abort(
+            c(
+                "User template not found: {.file {template_user}}",
+                "i" = "Available roles: {.val linguist}, {.val domain}, {.val interpreter}, {.val debater}, {.val judger}"
+            ),
+            call = rlang::expr(llm_stance())
         )
     }
     
@@ -151,44 +195,52 @@ get_prompts <- function(
     # Check for user prompt existence
     if (is.null(prompts$task)) {
         cli::cli_abort(
-            "User prompt is NULL for role {.val {role}}"
+            "User prompt is NULL for role {.val {role}}",
+            call = rlang::expr(llm_stance())
         )
     }
     
     # Check for empty strings
     if (any(nchar(prompts$system) == 0)) {
         cli::cli_abort(
-            "System prompt is empty after interpolation for role {.val {role}}"
+            "System prompt is empty after interpolation for role {.val {role}}",
+            call = rlang::expr(llm_stance())
         )
     }
     if (any(nchar(prompts$task) == 0)) {
         cli::cli_abort(
-            "User prompt is empty after interpolation for role {.val {role}}"
+            "User prompt is empty after interpolation for role {.val {role}}",
+            call = rlang::expr(llm_stance())
         )
     }
     
     prompts
 }
 
-check_tasks <- function(tasks, expected_length) {
+
+tasks_validate <- function(tasks, expected_length) {
     if (length(tasks) != expected_length || !is.character(tasks)) {
-        stop(
-            'User prompt interpolation returned unexpected results. ',
-            'Consider checking variable placeholders in user templates.',
-            call. = FALSE
+        cli::cli_abort(
+            c(
+                "User prompt interpolation returned unexpected results",
+                "i" = "Consider checking variable placeholders in user templates"
+            ),
+            call = rlang::expr(llm_stance())
         )
     }
     
     if (any(nchar(tasks) == 0)) {
-        stop(
-            'User prompt is empty after interpolation. ',
-            'Check that all required variables are provided.',
-            call. = FALSE
+        cli::cli_abort(
+            c(
+                "User prompt is empty after interpolation",
+                "i" = "Check that all required variables are provided"
+            ),
+            call = rlang::expr(llm_stance())
         )
     }
 }
 
-prepare_tasks <- function(chat_base, prompts, n_texts) {
+tasks_prepare <- function(chat_base, prompts, n_texts) {
     # General case when there may be > 1 system prompts
     ## (e.g. multiple domain roles)
     chats <- lapply(
@@ -203,10 +255,14 @@ prepare_tasks <- function(chat_base, prompts, n_texts) {
     )
     
     if (length(chats) != 1 & length(chats) != n_texts) {
-        stop("Length of system and user prompts must match.")
+        cli::cli_abort(
+            "Length of system and user prompts must match {.val {n_texts}}, \\
+            got {.val {length(chats)}}",
+            call = rlang::expr(llm_stance())
+        )
     }
-
-    check_tasks(prompts$task, n_texts)
+    
+    tasks_validate(prompts$task, n_texts)
     
     list(
         chats = chats,
@@ -270,16 +326,16 @@ prepare_expert_chats <- function(
         chat_base,
         expert_role = c('linguist', 'domain', 'interpreter')
 ) {
-    expert_role <- match.arg(
+    expert_role <- rlang::arg_match(
         expert_role,
         c('linguist', 'domain', 'interpreter'),
-        several.ok = FALSE
+        multiple = FALSE
     )
     
     # Загружаем инструкции для эксперта
     prompts <- with(
         inputs,
-        get_prompts(
+        prompts_prepare(
             expert_role,
             templates = prompt_templates,
             lang = lang,
@@ -290,7 +346,7 @@ prepare_expert_chats <- function(
         )
     )
     
-    prepare_tasks(chat_base, prompts, length(inputs$texts))
+    tasks_prepare(chat_base, prompts, length(inputs$texts))
 }
 
 execute_role <- function(
@@ -300,7 +356,7 @@ execute_role <- function(
         info,
         rpm = 500,
         verbose = TRUE
-    ) {
+) {
     tasks <- prepare_expert_chats(
         inputs,
         chat_base = chat_base,
@@ -318,9 +374,9 @@ execute_role <- function(
                 chat <- tasks$chats[[task_i]]
                 result <- chat$chat(tasks$tasks[[task_i]], echo = 'none')
                 if (!is.character(result)) {
-                    stop(
-                        glue::glue('Unexpected results in {info} {task_i}.'),
-                        call. = FALSE
+                    cli::cli_abort(
+                        "Unexpected results in {info} {task_i}",
+                        call = rlang::expr(llm_stance())
                     )
                 }
                 result
@@ -338,11 +394,12 @@ execute_role <- function(
     }
     
     if (!is.character(results) || length(results) != length(inputs$texts)) {
-        stop(
-            glue::glue(
-                'Unexpected results in {info}: input and output lengths differ.'
+        cli::cli_abort(
+            c(
+                "Unexpected results in {info}",
+                "x" = "Input and output lengths differ: {length(inputs$texts)} vs {length(results)}"
             ),
-            call. = FALSE
+            call = rlang::expr(llm_stance())
         )
     }
     
@@ -404,7 +461,7 @@ prepare_debater_chats <- function(
 ) {
     prompts <- with(
         inputs,
-        get_prompts(
+        prompts_prepare(
             'debater',
             lang = lang,
             templates = prompt_templates,
@@ -419,14 +476,16 @@ prepare_debater_chats <- function(
     )
     
     if (length(prompts$system) > 1) {
-        stop(
-            'Multiple system prompts are not allowed at stage 2',
-            'Consider checking variable placeholders in system templates.',
-            call. = FALSE
+        cli::cli_abort(
+            c(
+                "Multiple system prompts are not allowed at stage 2",
+                "i" = "Consider checking variable placeholders in system templates"
+            ),
+            call = rlang::expr(llm_stance())
         )
     }
-
-    prepare_tasks(chat_base, prompts, length(inputs$texts))
+    
+    tasks_prepare(chat_base, prompts, length(inputs$texts))
 }
 
 stage_2_parallel_debates <- function(
@@ -491,7 +550,7 @@ prepare_judger_chats <- function(
 ) {
     prompts <- with(
         inputs,
-        get_prompts(
+        prompts_prepare(
             'judger',
             lang = lang,
             templates = prompt_templates,
@@ -508,14 +567,16 @@ prepare_judger_chats <- function(
     )
     
     if (length(prompts$system) > 1) {
-        stop(
-            'Multiple system prompts are not allowed at stage 3',
-            'Consider checking variable placeholders in system templates.',
-            call. = FALSE
+        cli::cli_abort(
+            c(
+                "Multiple system prompts are not allowed at stage 3",
+                "i" = "Consider checking variable placeholders in system templates"
+            ),
+            call = rlang::expr(llm_stance())
         )
     }
     
-    prepare_tasks(chat_base, prompts, length(inputs$texts))
+    tasks_prepare(chat_base, prompts, length(inputs$texts))
 }
 
 stage_3_parallel_judgment <- function(
@@ -555,7 +616,10 @@ stage_3_parallel_judgment <- function(
     
     if (any(is.na(inputs$judgment_results$stance))) {
         n_na <- sum(is.na(inputs$judgment_results$stance))
-        warning(glue::glue("{n_na} items returned NA stance"))
+        cli::cli_warn(
+            "{n_na} item{?s} returned NA stance",
+            call = rlang::expr(llm_stance())
+        )
     }
     
     tictoc::toc(func.toc = stage_toc, quiet = !verbose)
@@ -614,44 +678,43 @@ llm_stance <- function(
     ## Validation ----
     tictoc::tic('Analysis')
     
-    if (!is.character(text)) {
-        stop("`text` must be a character vector")
-    }
-    if (length(text) == 0) {
-        stop("`text` cannot be empty")
-    }
+    # Validate text and target
+    validate_character(text)
+    validate_character(target)
     
     n <- length(text)
     
-    if (!is.character(target)) {
-        stop("`target` must be a character vector")
-    }
-    if (length(target) == 0) {
-        stop("`target` cannot be empty")
-    }
-    
-    if (is.character(type)) {
-        type <- match.arg(type, c('object', 'statement'), several.ok = TRUE)
+    # Validate type
+    if (rlang::is_character(type)) {
+        type <- rlang::arg_match(type, c('object', 'statement'), multiple = TRUE)
     } else {
-        stop("`type` must be a character vector")
+        cli::cli_abort("{.arg type} must be a character vector, got {.cls {class(type)}}")
     }
     
-    if (is.null(lang) | length(lang) > 1) {
+    # Validate lang
+    if (is.null(lang) || length(lang) > 1) {
         lang <- cld2::detect_language(text[[1]], lang_code = TRUE)
-        warning('The analysis language was automatically detected.')
+        cli::cli_warn("The analysis language was automatically detected: {.val {lang}}")
     }
-    if (is.character(lang) & length(lang) == 1) {
-        # Проверка языка
+    if (rlang::is_scalar_character(lang)) {
         if (!lang %in% rcola_available_languages()) {
-            stop("Language '", lang, "' not available. Use: ", 
-                 paste(rcola_available_languages(), collapse = ", "))
+            cli::cli_abort(
+                c(
+                    "Language {.val {lang}} not available",
+                    "i" = "Use one of: {.val {rcola_available_languages()}}"
+                )
+            )
         }
     } else {
-        stop("`lang` must be a single character string")
+        cli::cli_abort(
+            "{.arg lang} must be a character scalar, got {.cls {class(lang)}}"
+        )
     }
     
-    scale <- match.arg(scale, c('categorical', 'numeric', 'likert'))
+    # Validate scale
+    scale <- rlang::arg_match(scale, c('categorical', 'numeric', 'likert'))
     
+    # Validate domain_role
     if (is.null(domain_role)) {
         domain_role <- switch(
             lang,
@@ -660,23 +723,21 @@ llm_stance <- function(
             'social commentator'
         )
     } else {
-        if (!is.character(domain_role)|| length(domain_role) < 1) {
-            stop("`domain_role` must be a character vector")
+        if (!rlang::is_character(domain_role) || length(domain_role) < 1) {
+            cli::cli_abort("{.arg domain_role} must be a character vector, got {.cls {class(domain_role)}}")
         }
-        if (!(length(domain_role) == 1 | length(domain_role) == n)) {
-            stop(
-                glue::glue(
-                    "`domain_role` must have length 1 or {n} (same as `text`). "
-                ),
-                glue::glue("Got {length(arg)}.")
+        if (!(length(domain_role) == 1 || length(domain_role) == n)) {
+            cli::cli_abort(
+                c(
+                    "{.arg domain_role} must have length 1 or {n} (same as {.arg text})",
+                    "x" = "Got {length(domain_role)}"
+                )
             )
         }
     }
     
     if (length(domain_role) > 1) {
-        warning(
-            'Multiple domain roles detected. Parallel execution is unsupported.'
-        )
+        cli::cli_warn("Multiple domain roles detected. Parallel execution is unsupported.")
     }
     
     ### Chat Validation ----
@@ -698,13 +759,12 @@ llm_stance <- function(
     #     - Excellent reasoning skills
     #     - Excellent real-world awareness
     #     - Structured output: REQUIRED
-    chats <- if (is.list(chat_base)) {
+    chats <- if (rlang::is_list(chat_base)) {
         # Validate each element
         for (i in seq_along(chat_base)) {
             if (!ellmer:::is_chat(chat_base[[i]])) {
-                stop(
-                    glue::glue("Element {i} of `chat_base` "),
-                    "is not an `ellmer::Chat` object."
+                cli::cli_abort(
+                    "Element {i} of {.arg chat_base} is not an {.cls ellmer::Chat} object"
                 )
             }
         }
@@ -715,9 +775,11 @@ llm_stance <- function(
             `1` = c(1, 1, 1),
             `2` = c(1, 1, 2),
             `3` = c(1, 2, 3),
-            stop(
-                "`chat_base` must have 1, 2, or 3 elements. ",
-                "You provided ", length(chat_base), "."
+            cli::cli_abort(
+                c(
+                    "{.arg chat_base} must have 1, 2, or 3 elements",
+                    "x" = "You provided {length(chat_base)}"
+                )
             )
         )
         lapply(indices, \(i) chat_base[[i]]$clone(deep = TRUE))
@@ -726,9 +788,11 @@ llm_stance <- function(
         rep(list(chat_base$clone(deep = TRUE)), times = 3)
         
     } else {
-        stop(
-            "`chat_base` must be an `ellmer::Chat` object ",
-            "or a list of 1-3 `ellmer::Chat` objects."
+        cli::cli_abort(
+            c(
+                "{.arg chat_base} must be an {.cls ellmer::Chat} object or a list of 1-3 {.cls ellmer::Chat} objects",
+                "x" = "Got {.cls {class(chat_base)}}"
+            )
         )
     }
     
@@ -743,7 +807,7 @@ llm_stance <- function(
         Filter(f = \(x) !is.null(x) && dir.exists(x))
     
     if (length(search_dirs) == 0) {
-        stop('No prompt directories found')
+        cli::cli_abort("No prompt directories found for language {.val {lang}}")
     }
     
     role_templates <- expand.grid(
@@ -783,14 +847,14 @@ llm_stance <- function(
         # Если не найден — ошибка
         if (!found) {
             cli::cli_abort(
-                "Prompt {.file {filename}} not found for language {.val {lang}}.",
+                "Prompt {.file {filename}} not found for language {.val {lang}}"
             )
         }
     }
     
     ## Preparation ----
-    target <- recycle_arg(target, n, "target")
-    type <- recycle_arg(type, n, "type")
+    target <- recycle_arg(target, n)
+    type <- recycle_arg(type, n)
     
     target_types <- sapply(type, type_to_term, lang = lang)
     
@@ -828,7 +892,7 @@ llm_stance <- function(
         stage_3_parallel_judgment(chats[[3]], verbose, rpm, ...)
     
     if (is.null(output$judgment_results) || nrow(output$judgment_results) != n) {
-        stop("Final stance judgement returned unexpected results")
+        cli::cli_abort("Final stance judgement returned unexpected results")
     }
     
     # Additional postprocessing of quantitative and Likert stance labels
@@ -866,7 +930,6 @@ llm_stance <- function(
         print(summary_df)
         cat("\n")
         cat(strrep("=", 70), "\n")
-        # cli::cli_alert_success("Analysis complete! – {.time {toc$callback_msg}}")
         toc <- tictoc::toc(func.toc = stage_toc, quiet = FALSE)
         cat(strrep("=", 70), "\n\n")
     } else {
