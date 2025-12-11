@@ -1,9 +1,9 @@
 # TBD ----
-# 1. Up to three base chats as argument — Done!
-# 2. Different scales: + numeric, likert - Done!
-# 3. Nice Unicode handling in verbose() — Done!
-# 4. cli_abort() instead of stop()
-# 5. llm_stance.data.frame() method using rlang (imported by ellmer)
+# 1. Up to three base chats as argument → Done!
+# 2. Different scales: + numeric, likert → Done!
+# 3. Nice Unicode handling in verbose() → Done!
+# 4. cli_abort() instead of stop() → Done!
+# 5. llm_stance.data.frame() method using rlang (imported by ellmer) → Done!
 
 # Utils ----
 truncate <- function(x, a, b) {
@@ -1008,3 +1008,23 @@ summary.stance_result <- function(object, ...) {
 as.data.frame.stance_result <- function(x, row.names = NULL, optional = FALSE, ...) {
     x$summary
 }
+
+#' @export
+inspect <- function(x, ...) {
+    UseMethod("inspect")
+}
+
+#' @export
+inspect.stance_result <- function(
+        x,
+        what = c('metadata', 'analysis', 'debates')
+    ) {
+    
+    switch(
+        what,
+        metadata = yaml::write_yaml(x$metadata, file = stdout()),
+        # analysis = 
+        NULL
+    )
+}
+inspect(res_ru)
