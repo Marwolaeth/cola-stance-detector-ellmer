@@ -923,7 +923,8 @@ llm_stance.character <- function(
         target_type = type,
         language = language
     ) |>
-        cbind(output$judgment_results)
+        cbind(output$judgment_results) |>
+        tibble::as_tibble()
     
     if (verbose) {
         cat("\U1F4CA Summary Table:\n")
