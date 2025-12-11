@@ -39,7 +39,7 @@ openrouter_key <- function() {
 chat_analysis <- chat_openrouter(
     model = 'amazon/nova-2-lite-v1:free',
     credentials = openrouter_key,
-    api_args = list(temperature = 0, max_tokens = 1000)
+    api_args = list(temperature = 0, max_tokens = 3000)
 )
 
 chat_decision <- chat_openrouter(
