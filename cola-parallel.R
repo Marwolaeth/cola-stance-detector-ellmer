@@ -662,7 +662,7 @@ stage_3_parallel_judgment <- function(
 #' }
 #'
 #' @export
-llm_stance <- function(
+llm_stance.character <- function(
         text,
         target,
         chat_base,
@@ -1003,3 +1003,4 @@ as.data.frame.stance_result <- function(x, row.names = NULL, optional = FALSE, .
     x$summary
 }
 
+registerS3method('llm_stance', class = 'data.frame', method = llm_stance.data.frame)

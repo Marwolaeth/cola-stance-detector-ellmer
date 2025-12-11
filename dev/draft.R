@@ -119,3 +119,13 @@ chat_base <- chat_openai_compatible(
 cat("\u00B5\n")
 cat('\U1F4CA')
 cat('\U1F50D')
+
+# Tibbles ----
+res_en <- test_data_en |>
+    llm_stance(
+        tweet,
+        target,
+        type = target_type,
+        chat_base = list(chat_analysis, chat_decision)
+    )
+str(res_en)
