@@ -951,6 +951,7 @@ llm_stance.character <- function(
                 language = language,
                 types = unique(type),
                 domain_role = domain_role,
+                model = unique(sapply(chats, \(chat) chat$get_model())),
                 elapsed = toc$toc - toc$tic,
                 timestamp = Sys.time()
             )
@@ -975,6 +976,10 @@ print.stance_result <- function(x, ...) {
         glue::glue(
             "Domain role(s): {paste(x$metadata$domain_role, collapse = ', ')}"
         ),
+        "\n"
+    )
+    cat(
+        glue::glue("Model(s) used: {paste(x$metadata$model, collapse = ', ')}"),
         "\n"
     )
     cat(glue::glue("Time elapsed: {round(x$metadata$elapsed, 2)} sec"), "\n")

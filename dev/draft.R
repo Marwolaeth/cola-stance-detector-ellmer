@@ -43,7 +43,8 @@ chat_analysis <- chat_openrouter(
 )
 
 chat_decision <- chat_openrouter(
-    model = 'tngtech/tng-r1t-chimera:free',
+    # model = 'tngtech/tng-r1t-chimera:free',
+    model = 'mistralai/devstral-2512:free',
     credentials = openrouter_key,
     api_args = list(temperature = 0)
 )
