@@ -1027,4 +1027,3 @@ inspect.stance_result <- function(
         NULL
     )
 }
-inspect(res_ru)
