@@ -1,0 +1,50 @@
+load_translations : function ()
+rcola_available_languages : function ()
+l : function (language, caption_id, case = NULL)
+rcola_check_translations : function ()
+type_to_term : function (type = c("object", "statement"), language = rcola_available_languages())
+
+truncate : function (x, a, b)
+abort : function (...)
+catch : function (expr, expr_name = deparse(substitute(expr)))
+
+validate_inputs : function (inputs, expected_length, input_name = "Inputs")
+validate_character : function (x)
+validate_stage : function (x, stage_name)
+
+recycle_arg : function (arg, n)
+stage_toc : function (tic, toc, msg)
+
+prompts_prepare : function (role, templates, language = rcola_available_languages(), add_reference_resolution = FALSE,
+    add_statement_resolution = FALSE, ...)
+tasks_validate : function (tasks, expected_length)
+tasks_prepare : function (chat_base, prompts, n_texts)
+
+type_stance_categorical : function (language)
+type_stance_likert : function (language)
+type_stance_numeric : function (language)
+type_stance_analysis : function (language, scale)
+
+prepare_expert_chats : function (inputs, chat_base, expert_role = c("linguist", "domain", "interpreter"))
+execute_role : function (expert_role, inputs, chat_base, info, rpm = 500, verbose = TRUE)
+
+prepare_debater_chats : function (stance, inputs, chat_base)
+
+prepare_judger_chats : function (inputs, chat_base)
+
+stage_1_parallel_analysis : function (inputs, chat_base, verbose = TRUE, rpm = 500)
+stage_2_parallel_debates : function (inputs, chat_base, verbose = TRUE, rpm = 500)
+stage_3_parallel_judgment : function (inputs, chat_base, verbose = TRUE, rpm = 500, ...)
+
+llm_stance : function (text, ...)
+llm_stance.character : function (text, target, chat_base, type = c("object", "statement"), language = rcola_available_languages(),
+    scale = c("categorical", "numeric", "likert"), domain_role = NULL, prompts_dir = NULL, verbose = TRUE,
+    rpm = 20, ...)
+llm_stance.data.frame : function (data, text, target, type = NULL, domain_role = NULL, language = NULL, chat_base, scale = "categorical",
+    prompts_dir = NULL, verbose = TRUE, rpm = 20, .output_col = ".stance", ...)
+	
+print.stance_result : function (x, ...)
+summary.stance_result : function (object, ...)
+as.data.frame.stance_result : function (x, row.names = NULL, optional = FALSE, ...)
+inspect : function (x, ...)
+inspect.stance_result : function (x, what = c("metadata", "analysis", "debates"), within = NULL, index = 1)

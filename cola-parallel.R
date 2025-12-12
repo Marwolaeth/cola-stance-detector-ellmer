@@ -602,7 +602,7 @@ stage_3_parallel_judgment <- function(
 # The Wrapper Function ----
 #' Parallel Stance Analysis
 #'
-#' @param text Character vector of texts to analyze
+#' @param text Character vector of texts to analyse
 #' @param target Character vector of targets (recycled if length 1)
 #' @param chat_base an [ellmer::Chat] object from
 #' @param type either "object" or "statement" (recycled if length 1)
