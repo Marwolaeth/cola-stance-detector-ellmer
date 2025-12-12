@@ -70,6 +70,7 @@ res_ru <- llm_stance(
     domain_role = 'политический обозреватель'
 )
 
+res_ru$summary
 inspect(res_ru)
 inspect(res_ru, 'analysis')
 inspect(res_ru, 'analysis', 'linguistic')

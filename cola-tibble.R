@@ -27,7 +27,9 @@ llm_stance.data.frame <- function(
     
     # Проверяем, что data это data.frame
     if (!is.data.frame(data)) {
-        cli::cli_abort("{.arg data} must be a data.frame, got {.cls {class(data)}}")
+        cli::cli_abort(
+            "{.arg data} must be a data.frame, got {.cls {class(data)}}"
+        )
     }
     
     # Извлекаем значения из data или окружения

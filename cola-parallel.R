@@ -20,6 +20,13 @@ truncate <- function(x, a, b) {
     pmin(pmax(x, a), b)
 }
 
+abort <- function(...) {
+    cli::cli_abort(
+        ...,
+        call = rlang::expr(llm_stance()),
+        .envir = rlang::caller_env()
+    )
+}
 
 catch <- function(expr, expr_name = deparse(substitute(expr))) {
     if (!rlang::is_scalar_character(expr_name)) {
@@ -29,13 +36,10 @@ catch <- function(expr, expr_name = deparse(substitute(expr))) {
         )
     }
     
-    tryCatch(
+    rlang::try_fetch(
         expr,
         error = function(e) {
-            cli::cli_abort(
-                "Error in {expr_name}: {e$message}",
-                call = rlang::expr(llm_stance())
-            )
+            abort("Error in {expr_name}: {e$message}")
         }
     )
 }
@@ -46,10 +50,7 @@ validate_inputs <- function(inputs, expected_length, input_name = 'Inputs') {
     }
     
     if (is.null(inputs) || length(inputs) != expected_length) {
-        cli::cli_abort(
-            "{input_name} returned unexpected results",
-            call = rlang::expr(llm_stance())
-        )
+        abort("{input_name} returned unexpected results")
     }
 }
 
@@ -61,10 +62,9 @@ recycle_arg <- function(arg, n) {
     } else if (length(arg) == n) {
         return(arg)
     } else {
-        cli::cli_abort(
+        abort(
             "{.arg {arg_name}} must have length 1 or {n} (same as {.arg text}). \\
-            Got {length(arg)}.",
-            call = rlang::expr(llm_stance())
+            Got {length(arg)}."
         )
     }
 }
@@ -84,34 +84,26 @@ validate_character <- function(x) {
     arg_name <- deparse(substitute(x))
     
     if (!rlang::is_character(x)) {
-        cli::cli_abort(
-            "{.arg {arg_name}} must be a character vector, got {.cls {class(x)}}",
-            call = rlang::expr(llm_stance())
+        abort(
+            "{.arg {arg_name}} must be a character vector, got {.cls {class(x)}}"
         )
     }
     if (length(x) == 0) {
-        cli::cli_abort(
-            "{.arg {arg_name}} cannot be empty",
-            call = rlang::expr(llm_stance())
-        )
+        abort("{.arg {arg_name}} cannot be empty")
     }
     if (any(is.na(x)) || any(ellmer:::trim(x) == '')) {
-        cli::cli_abort(
+        abort(
             c(
                 "{.arg {arg_name}} contains empty strings.",
                 "i" = "consider removing them before analysis."
-            ),
-            call = rlang::expr(llm_stance())
+            )
         )
     }
 }
 
 validate_stage <- function(x, stage_name) {
     if (is.null(x)) {
-        cli::cli_abort(
-            "{stage_name} returned NULL",
-            call = rlang::expr(llm_stance())
-        )
+        abort("{stage_name} returned NULL")
     }
     x
 }
@@ -169,21 +161,19 @@ prompts_prepare <- function(
     
     # Check for file existence
     if (!file.exists(template_system)) {
-        cli::cli_abort(
+        abort(
             c(
                 "System template not found: {.file {template_system}}",
                 "i" = "Available roles: {.val linguist}, {.val domain}, {.val interpreter}, {.val debater}, {.val judger}"
-            ),
-            call = rlang::expr(llm_stance())
+            )
         )
     }
     if (!file.exists(template_user)) {
-        cli::cli_abort(
+        abort(
             c(
                 "User template not found: {.file {template_user}}",
                 "i" = "Available roles: {.val linguist}, {.val domain}, {.val interpreter}, {.val debater}, {.val judger}"
-            ),
-            call = rlang::expr(llm_stance())
+            )
         )
     }
     
@@ -194,24 +184,15 @@ prompts_prepare <- function(
     
     # Check for user prompt existence
     if (is.null(prompts$task)) {
-        cli::cli_abort(
-            "User prompt is NULL for role {.val {role}}",
-            call = rlang::expr(llm_stance())
-        )
+        abort("User prompt is NULL for role {.val {role}}")
     }
     
     # Check for empty strings
     if (any(nchar(prompts$system) == 0)) {
-        cli::cli_abort(
-            "System prompt is empty after interpolation for role {.val {role}}",
-            call = rlang::expr(llm_stance())
-        )
+        abort("System prompt is empty after interpolation for role {.val {role}}")
     }
     if (any(nchar(prompts$task) == 0)) {
-        cli::cli_abort(
-            "User prompt is empty after interpolation for role {.val {role}}",
-            call = rlang::expr(llm_stance())
-        )
+        abort("User prompt is empty after interpolation for role {.val {role}}")
     }
     
     prompts
@@ -220,22 +201,20 @@ prompts_prepare <- function(
 
 tasks_validate <- function(tasks, expected_length) {
     if (length(tasks) != expected_length || !is.character(tasks)) {
-        cli::cli_abort(
+        abort(
             c(
                 "User prompt interpolation returned unexpected results",
                 "i" = "Consider checking variable placeholders in user templates"
-            ),
-            call = rlang::expr(llm_stance())
+            )
         )
     }
     
     if (any(nchar(tasks) == 0)) {
-        cli::cli_abort(
+        abort(
             c(
                 "User prompt is empty after interpolation",
                 "i" = "Check that all required variables are provided"
-            ),
-            call = rlang::expr(llm_stance())
+            )
         )
     }
 }
@@ -255,10 +234,9 @@ tasks_prepare <- function(chat_base, prompts, n_texts) {
     )
     
     if (length(chats) != 1 & length(chats) != n_texts) {
-        cli::cli_abort(
+        abort(
             "Length of system and user prompts must match {.val {n_texts}}, \\
-            got {.val {length(chats)}}",
-            call = rlang::expr(llm_stance())
+            got {.val {length(chats)}}"
         )
     }
     
@@ -374,10 +352,7 @@ execute_role <- function(
                 chat <- tasks$chats[[task_i]]
                 result <- chat$chat(tasks$tasks[[task_i]], echo = 'none')
                 if (!is.character(result)) {
-                    cli::cli_abort(
-                        "Unexpected results in {info} {task_i}",
-                        call = rlang::expr(llm_stance())
-                    )
+                    abort("Unexpected results in {info} {task_i}")
                 }
                 result
             },
@@ -394,12 +369,11 @@ execute_role <- function(
     }
     
     if (!is.character(results) || length(results) != length(inputs$texts)) {
-        cli::cli_abort(
+        abort(
             c(
                 "Unexpected results in {info}",
                 "x" = "Input and output lengths differ: {length(inputs$texts)} vs {length(results)}"
-            ),
-            call = rlang::expr(llm_stance())
+            )
         )
     }
     
@@ -476,12 +450,11 @@ prepare_debater_chats <- function(
     )
     
     if (length(prompts$system) > 1) {
-        cli::cli_abort(
+        abort(
             c(
                 "Multiple system prompts are not allowed at stage 2",
                 "i" = "Consider checking variable placeholders in system templates"
-            ),
-            call = rlang::expr(llm_stance())
+            )
         )
     }
     
@@ -567,12 +540,11 @@ prepare_judger_chats <- function(
     )
     
     if (length(prompts$system) > 1) {
-        cli::cli_abort(
+        abort(
             c(
                 "Multiple system prompts are not allowed at stage 3",
                 "i" = "Consider checking variable placeholders in system templates"
-            ),
-            call = rlang::expr(llm_stance())
+            )
         )
     }
     
@@ -688,13 +660,17 @@ llm_stance.character <- function(
     if (rlang::is_character(type)) {
         type <- rlang::arg_match(type, c('object', 'statement'), multiple = TRUE)
     } else {
-        cli::cli_abort("{.arg type} must be a character vector, got {.cls {class(type)}}")
+        cli::cli_abort(
+            "{.arg type} must be a character vector, got {.cls {class(type)}}"
+        )
     }
     
     # Validate language
     if (is.null(language) || length(language) > 1) {
         language <- cld2::detect_language(text[[1]], lang_code = TRUE)
-        cli::cli_warn("The analysis language was automatically detected: {.val {language}}")
+        cli::cli_warn(
+            "The analysis language was automatically detected: {.val {language}}"
+        )
     }
     if (rlang::is_scalar_character(language)) {
         if (!language %in% rcola_available_languages()) {
@@ -724,7 +700,9 @@ llm_stance.character <- function(
         )
     } else {
         if (!rlang::is_character(domain_role) || length(domain_role) < 1) {
-            cli::cli_abort("{.arg domain_role} must be a character vector, got {.cls {class(domain_role)}}")
+            cli::cli_abort(
+                "{.arg domain_role} must be a character vector, got {.cls {class(domain_role)}}"
+            )
         }
         if (!(length(domain_role) == 1 || length(domain_role) == n)) {
             cli::cli_abort(
@@ -737,7 +715,9 @@ llm_stance.character <- function(
     }
     
     if (length(domain_role) > 1) {
-        cli::cli_warn("Multiple domain roles detected. Parallel execution is unsupported.")
+        cli::cli_warn(
+            "Multiple domain roles detected. Parallel execution is unsupported."
+        )
     }
     
     ### Chat Validation ----
@@ -807,7 +787,9 @@ llm_stance.character <- function(
         Filter(f = \(x) !is.null(x) && dir.exists(x))
     
     if (length(search_dirs) == 0) {
-        cli::cli_abort("No prompt directories found for language {.val {language}}")
+        cli::cli_abort(
+            "No prompt directories found for language {.val {language}}"
+        )
     }
     
     role_templates <- expand.grid(

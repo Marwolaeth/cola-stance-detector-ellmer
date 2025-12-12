@@ -1,7 +1,10 @@
 load_translations <- function() {
     # yaml_file <- system.file("i18n/translations.yaml", package = "rcola")
     yaml_file <- "i18n/translations.yaml"
-    yaml::read_yaml(yaml_file)
+    rlang::try_fetch(
+        yaml::read_yaml(yaml_file),
+        error = function(e) cli::cli_abort("Tranlsations not found.")
+    )
 }
 
 rcola_available_languages <- function() {
@@ -11,40 +14,51 @@ rcola_available_languages <- function() {
 l <- function(language, caption_id, case = NULL) {
     # Проверка языка
     if (!language %in% rcola_available_languages()) {
-        stop("Language '", language, "' not available. Use: ", 
-             paste(rcola_available_languages(), collapse = ", "))
+        abort(
+            "Language '{language}' not available. \\
+            Use: {.val {rcola_available_languages()}}"
+        )
     }
     
     dict <- load_translations()
     
     # Проверка ключа
     if (!caption_id %in% names(dict[[language]])) {
-        stop("Caption ID '", caption_id, "' not found in language '", language, "'")
+        cli::cli_abort(
+            "Caption ID '{caption_id}' not found ",
+            "in language '{language}'"
+        )
     }
     
     translation <- dict[[language]][[caption_id]]
     
     if (!is.null(case)) {
-        case <- match.arg(
+        case <- rlang::arg_match(
             case,
             c('gen', 'dat', 'categorical', 'numeric', 'likert'),
-            several.ok = FALSE
+            multiple = FALSE
         )
         
         if (!is.list(translation)) {
-            stop("Case '", case, "' not supported for '", caption_id, 
-                 "' (expected list with cases)")
+            cli::cli_abort(
+                "Case '{case}' not supported for '{caption_id}' ",
+                "(expected list with cases)"
+            )
         }
         
         if (!case %in% names(translation)) {
-            stop("Case '", case, "' not found for '", caption_id, "'")
+            cli::cli_abort(
+                "Case '{case}' not found for '{caption_id}'"
+            )
         }
         
         translation[[case]]
     } else {
         if (is.list(translation)) {
-            stop("Case required for '", caption_id, "'. Available: ", 
-                 paste(names(translation), collapse = ", "))
+            cli::cli_abort(
+                "Case required for '{caption_id}'. ",
+                "Available: {.val {names(translation)}}"
+            )
         }
         
         translation
