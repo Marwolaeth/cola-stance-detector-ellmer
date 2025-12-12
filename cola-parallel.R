@@ -20,15 +20,18 @@ truncate <- function(x, a, b) {
     pmin(pmax(x, a), b)
 }
 
-abort <- function(...) {
+abort <- function(msg) {
     cli::cli_abort(
-        ...,
+        msg,
         call = rlang::expr(llm_stance()),
         .envir = rlang::caller_env()
     )
 }
 
-catch <- function(expr, expr_name = deparse(substitute(expr))) {
+catch <- function(
+        expr,
+        expr_name = paste(deparse(substitute(expr)), collapse = '')
+) {
     if (!rlang::is_scalar_character(expr_name)) {
         cli::cli_abort(
             "{.arg expr_name} must be a character scalar.
@@ -52,6 +55,8 @@ validate_inputs <- function(inputs, expected_length, input_name = 'Inputs') {
     if (is.null(inputs) || length(inputs) != expected_length) {
         abort("{input_name} returned unexpected results")
     }
+    
+    invisible(TRUE)
 }
 
 recycle_arg <- function(arg, n) {
@@ -69,7 +74,7 @@ recycle_arg <- function(arg, n) {
     }
 }
 
-stage_toc <- function(tic, toc, msg) {
+stage_complete <- function(tic, toc, msg) {
     tocmsg <- paste0(round(toc - tic, 3), " seconds elapsed")
     
     if (is.null(msg) || is.na(msg) || length(msg) == 0) {
@@ -99,6 +104,8 @@ validate_character <- function(x) {
             )
         )
     }
+    
+    invisible(TRUE)
 }
 
 validate_stage <- function(x, stage_name) {
@@ -121,6 +128,67 @@ type_to_term <- function(
         object = l(language, 'object', 'dat'),
         statement = l(language, 'statement', 'dat')
     )
+}
+
+templates_collect <- function(prompts_dir, language, scale) {
+    # DEFAULT_PROMPTS_DIR <- system.file(
+    #     file.path('prompts', language),
+    #     package = 'rcola'
+    # )
+    DEFAULT_PROMPTS_DIR <- file.path('prompts', language)
+    
+    search_dirs <- c(prompts_dir, DEFAULT_PROMPTS_DIR) |> 
+        Filter(f = \(x) !is.null(x) && dir.exists(x))
+    
+    if (length(search_dirs) == 0) {
+        cli::cli_abort(
+            "No prompt directories found for language {.val {language}}"
+        )
+    }
+    
+    role_templates <- expand.grid(
+        call = c('system', 'user'),
+        role = c('linguist', 'domain', 'interpreter', 'debater', 'judger'),
+        stringsAsFactors = FALSE
+    ) |>
+        glue::glue_data('{call}-{role}.md') |>
+        as.character() |>
+        as.list()
+    names(role_templates) <- gsub('\\.md', '', role_templates)
+    
+    prompt_files <- list(
+        scale_description = glue::glue('description-{scale}.md'),
+        scale_guide = glue::glue('guide-{scale}.md'),
+        reference_resolution = 'reference-resolution.md',
+        statement_resolution = 'statement-resolution.md'
+    ) |>
+        c(role_templates)
+    
+    prompt_templates <- list()
+    
+    for (name in names(prompt_files)) {
+        filename <- prompt_files[[name]]
+        
+        # Ищем файл в порядке приоритета
+        found <- FALSE
+        for (dir in search_dirs) {
+            filepath <- file.path(dir, filename)
+            if (file.exists(filepath)) {
+                prompt_templates[[name]] <- filepath
+                found <- TRUE
+                break
+            }
+        }
+        
+        # Если не найден — ошибка
+        if (!found) {
+            cli::cli_abort(
+                "Prompt {.file {filename}} not found for language {.val {language}}"
+            )
+        }
+    }
+    
+    prompt_templates
 }
 
 prompts_prepare <- function(
@@ -249,25 +317,21 @@ tasks_prepare <- function(chat_base, prompts, n_texts) {
 }
 
 # Schemas ----
-type_stance_categorical <- function(language) {
-    type_enum(
+type_stance_categorical <- function(description_file) {
+    ellmer::type_enum(
         values = c('Positive', 'Negative', 'Neutral'),
-        description = ellmer::interpolate_file(
-            file.path('prompts', language, 'description-categorical.md')
-        )
+        description = ellmer::interpolate_file(description_file)
     )
 }
 
-type_stance_numeric <- function(language) {
-    type_number(
-        description = ellmer::interpolate_file(
-            file.path('prompts', language, 'description-numeric.md')
-        )
+type_stance_numeric <- function(description_file) {
+    ellmer::type_number(
+        description = ellmer::interpolate_file(description_file)
     )
 }
 
-type_stance_likert <- function(language) {
-    type_enum(
+type_stance_likert <- function(description_file) {
+    ellmer::type_enum(
         values = c(
             'Strongly Disagree',
             'Disagree',
@@ -275,19 +339,17 @@ type_stance_likert <- function(language) {
             'Agree',
             'Strongly Agree'
         ),
-        description = ellmer::interpolate_file(
-            file.path('prompts', language, 'description-likert.md')
-        )
+        description = ellmer::interpolate_file(description_file)
     )
 }
 
-type_stance_analysis <- function(language, scale) {
+type_stance_analysis <- function(language, description_file, scale) {
     # A schema for the structured output
     type_stance <- switch(
         scale,
-        numeric = type_stance_numeric(language),
-        likert = type_stance_likert(language),
-        type_stance_categorical(language)
+        numeric = type_stance_numeric(description_file),
+        likert = type_stance_likert(description_file),
+        type_stance_categorical(description_file)
     )
     
     type_object(
@@ -421,7 +483,7 @@ stage_1_parallel_analysis <- function(
     ## One vector for each role
     inputs[['analysis_results']] <- analysis_results
     
-    tictoc::toc(func.toc = stage_toc, quiet = !verbose)
+    tictoc::toc(func.toc = stage_complete, quiet = !verbose)
     
     inputs
 }
@@ -511,7 +573,7 @@ stage_2_parallel_debates <- function(
         }
     )
     
-    tictoc::toc(func.toc = stage_toc, quiet = !verbose)
+    tictoc::toc(func.toc = stage_complete, quiet = !verbose)
     
     inputs
 }
@@ -580,7 +642,11 @@ stage_3_parallel_judgment <- function(
     inputs[['judgment_results']] <- ellmer::parallel_chat_structured(
         chat = judger_tasks$chats[[1]],
         prompts = judger_tasks$tasks,
-        type = type_stance_analysis(inputs$language, inputs$scale),
+        type = type_stance_analysis(
+            inputs$language,
+            inputs$prompt_templates$scale_description,
+            inputs$scale
+        ),
         rpm = rpm,
         convert = TRUE,
         ...
@@ -594,7 +660,7 @@ stage_3_parallel_judgment <- function(
         )
     }
     
-    tictoc::toc(func.toc = stage_toc, quiet = !verbose)
+    tictoc::toc(func.toc = stage_complete, quiet = !verbose)
     
     inputs
 }
@@ -777,62 +843,7 @@ llm_stance.character <- function(
     }
     
     ## Prompts ----
-    # DEFAULT_PROMPTS_DIR <- system.file(
-    #     file.path('prompts', language),
-    #     package = 'rcola'
-    # )
-    DEFAULT_PROMPTS_DIR <- file.path('prompts', language)
-    
-    search_dirs <- c(prompts_dir, DEFAULT_PROMPTS_DIR) |> 
-        Filter(f = \(x) !is.null(x) && dir.exists(x))
-    
-    if (length(search_dirs) == 0) {
-        cli::cli_abort(
-            "No prompt directories found for language {.val {language}}"
-        )
-    }
-    
-    role_templates <- expand.grid(
-        call = c('system', 'user'),
-        role = c('linguist', 'domain', 'interpreter', 'debater', 'judger'),
-        stringsAsFactors = FALSE
-    ) |>
-        glue::glue_data('{call}-{role}.md') |>
-        as.character() |>
-        as.list()
-    names(role_templates) <- gsub('\\.md', '', role_templates)
-    
-    prompt_files <- list(
-        scale_description = glue::glue('description-{scale}.md'),
-        scale_guide = glue::glue('guide-{scale}.md'),
-        reference_resolution = 'reference-resolution.md',
-        statement_resolution = 'statement-resolution.md'
-    ) |>
-        c(role_templates)
-    
-    prompt_templates <- list()
-    
-    for (name in names(prompt_files)) {
-        filename <- prompt_files[[name]]
-        
-        # Ищем файл в порядке приоритета
-        found <- FALSE
-        for (dir in search_dirs) {
-            filepath <- file.path(dir, filename)
-            if (file.exists(filepath)) {
-                prompt_templates[[name]] <- filepath
-                found <- TRUE
-                break
-            }
-        }
-        
-        # Если не найден — ошибка
-        if (!found) {
-            cli::cli_abort(
-                "Prompt {.file {filename}} not found for language {.val {language}}"
-            )
-        }
-    }
+    prompt_templates <- templates_collect(prompts_dir, language, scale)
     
     ## Preparation ----
     target <- recycle_arg(target, n)
@@ -913,10 +924,10 @@ llm_stance.character <- function(
         print(summary_df)
         cat("\n")
         cat(strrep("=", 70), "\n")
-        toc <- tictoc::toc(func.toc = stage_toc, quiet = FALSE)
+        toc <- tictoc::toc(func.toc = stage_complete, quiet = FALSE)
         cat(strrep("=", 70), "\n\n")
     } else {
-        toc <- tictoc::toc(func.toc = stage_toc, quiet = TRUE)
+        toc <- tictoc::toc(func.toc = stage_complete, quiet = TRUE)
     }
     
     ## Return ----

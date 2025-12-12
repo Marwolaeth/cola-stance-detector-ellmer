@@ -2,7 +2,6 @@
 # remotes::install_github('tidyverse/ellmer')
 
 library(ellmer)
-library(glue)
 
 # --- Настройка базового LLM ----
 # Предполагается, что у вас настроен ключ API (например, переменная среды OPENAI_API_KEY)

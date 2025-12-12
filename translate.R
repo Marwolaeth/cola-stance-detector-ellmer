@@ -81,6 +81,8 @@ rcola_check_translations <- function() {
         }
         cat("\n")
     }
+    
+    invisible(TRUE)
 }
 
 # rcola_check_translations()

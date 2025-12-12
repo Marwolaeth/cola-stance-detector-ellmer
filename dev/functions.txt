@@ -13,7 +13,7 @@ validate_character : function (x)
 validate_stage : function (x, stage_name)
 
 recycle_arg : function (arg, n)
-stage_toc : function (tic, toc, msg)
+stage_complete : function (tic, toc, msg)
 
 prompts_prepare : function (role, templates, language = rcola_available_languages(), add_reference_resolution = FALSE,
     add_statement_resolution = FALSE, ...)
