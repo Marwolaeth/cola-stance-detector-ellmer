@@ -1014,16 +1014,143 @@ inspect <- function(x, ...) {
     UseMethod("inspect")
 }
 
+#' Inspect stance_result objects
+#'
+#' @param x A stance_result object
+#' @param what Primary inspection level: 'metadata', 'analysis', or 'debates'
+#' @param within Secondary inspection level (for 'analysis' and 'debates')
+#' @param index Row index to inspect (for analysis/debates with multiple rows)
+#'
 #' @export
 inspect.stance_result <- function(
         x,
-        what = c('metadata', 'analysis', 'debates')
-    ) {
+        what = c('metadata', 'analysis', 'debates'),
+        within = NULL,
+        index = 1
+) {
+    
+    what <- match.arg(what)
     
     switch(
         what,
-        metadata = yaml::write_yaml(x$metadata, file = stdout()),
-        # analysis = 
-        NULL
+        
+        metadata = {
+            cat("\n", cli::rule("METADATA"), "\n\n")
+            yaml::write_yaml(x$metadata, file = stdout())
+        },
+        
+        analysis = {
+            if (is.null(within)) {
+                cat("\n", cli::rule("ANALYSIS - Available sections"), "\n\n")
+                available <- names(x$analysis)
+                cat("Available sections:\n")
+                for (section in available) {
+                    cat(
+                        cli::col_cyan(
+                            sprintf("  • %s\n", section)
+                        )
+                    )
+                }
+                cat(
+                    "\nUsage: ",
+                    "inspect(result, what = 'analysis', ",
+                    "within = 'section_name')\n\n",
+                    sep = ""
+                )
+            } else {
+                if (!within %in% names(x$analysis)) {
+                    cli::cli_abort(
+                        "Section '{within}' not found in analysis. ",
+                        "Available: {.val {names(x$analysis)}}"
+                    )
+                }
+                
+                if (index > length(x$analysis)) {
+                    cli::cli_abort(
+                        "Index {index} out of bounds. ",
+                        "Analysis has {length(x$analysis)} rows."
+                    )
+                }
+                
+                content <- x$analysis[[within]][index]
+                
+                cat(
+                    "\n",
+                    cli::rule(
+                        sprintf(
+                            "ANALYSIS: %s [row %d]",
+                            within,
+                            index
+                        )
+                    ),
+                    "\n\n"
+                )
+                
+                if (is.na(content) || is.null(content)) {
+                    cat(cli::col_yellow("(empty)\n\n"))
+                } else {
+                    cat(ellmer::interpolate(content))
+                    cat("\n")
+                }
+            }
+        },
+        
+        debates = {
+            if (is.null(within)) {
+                cat("\n", cli::rule("DEBATES - Available sections"), "\n\n")
+                available <- names(x$debates)
+                cat("Available sections:\n")
+                for (section in available) {
+                    cat(
+                        cli::col_cyan(
+                            sprintf("  • %s\n", section)
+                        )
+                    )
+                }
+                cat(
+                    "\nUsage: ",
+                    "inspect(result, what = 'debates', ",
+                    "within = 'section_name')\n\n",
+                    sep = ""
+                )
+            } else {
+                if (!within %in% names(x$debates)) {
+                    cli::cli_abort(
+                        "Section '{within}' not found in debates. ",
+                        "Available: {.val {names(x$debates)}}"
+                    )
+                }
+                
+                if (index > length(x$debates)) {
+                    cli::cli_abort(
+                        "Index {index} out of bounds. ",
+                        "Debates has {length(x$debates)} rows."
+                    )
+                }
+                
+                content <- x$debates[[within]][index]
+                
+                cat(
+                    "\n",
+                    cli::rule(
+                        sprintf(
+                            "DEBATES: %s [row %d]",
+                            within,
+                            index
+                        )
+                    ),
+                    "\n\n"
+                )
+                
+                if (is.na(content) || is.null(content)) {
+                    cat(cli::col_yellow("(empty)\n\n"))
+                } else {
+                    cat(ellmer::interpolate(content))
+                    cat("\n")
+                }
+            }
+        }
     )
+    
+    invisible(x)
 }

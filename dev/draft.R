@@ -70,6 +70,11 @@ res_ru <- llm_stance(
     domain_role = 'политический обозреватель'
 )
 
+inspect(res_ru)
+inspect(res_ru, 'analysis')
+inspect(res_ru, 'analysis', 'linguistic')
+inspect(res_ru, 'debates', 'negative', 3)
+
 # Providers ----
 ## Google ----
 chat_decision <- chat_google_gemini(
