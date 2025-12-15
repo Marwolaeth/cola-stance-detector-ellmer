@@ -379,16 +379,30 @@ as.data.frame(res_ru)
 
 # Special Examples ----
 
+chat_analysis <- chat_openrouter(
+    model = 'amazon/nova-2-lite-v1:free',
+    credentials = openrouter_key,
+    api_args = list(temperature = 0, max_tokens = 3000)
+)
+
+chat_decision <- chat_openrouter(
+    # model = 'tngtech/tng-r1t-chimera:free',
+    model = 'mistralai/devstral-2512:free',
+    credentials = openrouter_key,
+    api_args = list(temperature = 0)
+)
+
 # files <- list.files(file.path('examples'), pattern = 'hedge', full.names = TRUE)
 files <- list.files(file.path('examples'), full.names = TRUE)
 txt <- vapply(files, readr::read_file, character(1))
-llm_stance(
-    txt[1:3],
+res <- llm_stance(
+    txt,
     target = 'Роскомнадзор',
-    chat_base = chat_base,
+    chat_base = list(chat_analysis, chat_decision),
     type = 'object',
     language = 'ru',
     domain_role = c('политический обозреватель'),
     verbose = TRUE,
     rpm = 10
 )
+res$summary$explanation[3]
